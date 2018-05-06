@@ -13,6 +13,8 @@
 #include <gl/GL.h>
 #include <strsafe.h>
 
+#include "types.h"
+
 HDC gHdc;
 
 void log(const char* fmt, ...)
@@ -47,60 +49,29 @@ unsigned long long getModifyTime(const char* f)
 }
 
 typedef void(*render_t)(float);
-typedef void(*initialize_t)(int, int);
+typedef void(*initialize_t)(int, int); // width, height of the window
 
 static render_t render = NULL;
 static initialize_t initialize = NULL;
 static unsigned long long last_mode_time = 0;
 static HMODULE render_dll = NULL;
 
-static char full_path_to_dll[MAX_PATH];
-static char full_path_to_dll_copy[MAX_PATH];
+static const char* full_path_to_dll = "game.dll";
+static const char* full_path_to_dll_copy = "game_copy.dll";
 
-void buildGamePaths(void)
-{
-	snprintf(full_path_to_dll, sizeof(full_path_to_dll), "%s", "game.dll");
-	snprintf(full_path_to_dll_copy, sizeof(full_path_to_dll), "%s", "game_copy.dll");
-
-	log("game dll: %s\n", full_path_to_dll);
-	log("game dll copy: %s\n", full_path_to_dll_copy);
-}
-
-void checkModuleHandle(const char* f)
-{
-	HMODULE h = GetModuleHandleA(f);
-	if (h == NULL) {
-		log("No module: %s\n", f);
-	}
-	else {
-		log("Handle reference found for %s\n", f);
-	}
-}
-
+// load the game code dll
 void loadGameCode(void)
 {
 	unsigned long long now = getModifyTime(full_path_to_dll);
 
 	if (now != last_mode_time) {
-		checkModuleHandle(full_path_to_dll_copy);
 		if (render_dll) {
 			log("Unloading library.\n");
 			if (FreeLibrary(render_dll) == 0) {
 				log("Error freeing library: %i\n", GetLastError());
 			}
-			if (FreeLibrary(render_dll) == 0) {
-				log("2 Error freeing library: %i\n", GetLastError());
-			}
-			if (FreeLibrary(render_dll) == 0) {
-				log("3 Error freeing library: %i\n", GetLastError());
-			}
-			if (FreeLibrary(render_dll) == 0) {
-				log("4 Error freeing library: %i\n", GetLastError());
-			}
 			render_dll = NULL;
 		}
-
-		checkModuleHandle(full_path_to_dll_copy);
 
 		log("loading game code\n");
 		for (int tries = 0; tries < 100; tries++) {
@@ -132,8 +103,6 @@ void loadGameCode(void)
 				Sleep(100);
 			}
 		}
-
-		checkModuleHandle(full_path_to_dll_copy);
 
 		if (render_dll == NULL) {
 			log("Failed to copy dll %i\n", GetLastError());
@@ -183,10 +152,139 @@ void initializeGL()
 	
 
 	glClear(GL_COLOR_BUFFER_BIT);
-
 }
 
+screen_font* checkFontStuff(HDC dcIn)
+{
+   HDC dc = CreateCompatibleDC(dcIn);
+   HBITMAP bitmap = CreateCompatibleBitmap(dc, 512, 512);
+   BITMAP data;
+   const char* fontName = "Small Fonts Regular"; //   "Droid Sans Mono Slashed"
 
+   SelectObject(dc, bitmap);
+   int fontSizes[] = {12, 18, 24, 36, 0};
+   char firstChar = 0x21;
+   char lastChar = 0x7e;
+   int X = 0;
+   int Y = 0;
+
+   // TODO(dad): don't use malloc
+   screen_font* result = (screen_font*)malloc(sizeof(screen_font));
+
+   result->fontName = _strdup(fontName);
+   result->firstChar = firstChar;
+   result->lastChar = lastChar;
+   result->numSizes = 4;
+   result->sizes = (screen_font_size*)malloc(sizeof(screen_font_size) * 4);
+
+   //SetBkMode(dc, TRANSPARENT);
+   SetBkMode(dc, RGB(0, 0, 0));
+   SetTextColor(dc, RGB(0xff, 0xff, 0xff));
+
+   for (int i = 0; fontSizes[i]; i++) {
+      HFONT font = CreateFont(fontSizes[i], 0, 0, 0, 
+            FW_BOLD, 0, 0, 0,
+            DEFAULT_CHARSET,
+            OUT_OUTLINE_PRECIS,
+            CLIP_DEFAULT_PRECIS,
+            PROOF_QUALITY,
+            FF_MODERN,
+            fontName);
+
+      SelectObject(dc, font);
+
+      screen_font_size* ps = result->sizes + i;
+
+      ps->size = fontSizes[i];
+      ps->entries = (screen_font_entry*)malloc(sizeof(screen_font_entry) * (lastChar - firstChar + 1));
+
+      /*
+      int cnt = GetTextFace(dc, 0, NULL);
+      char* textFace = (char*)malloc(cnt);
+      GetTextFace(dc, cnt, textFace);
+      log("text face %s\n", textFace);
+      */
+
+      TEXTMETRIC metrics;
+      GetTextMetrics(dc, &metrics);
+
+      // for every character, get the size and write to bitmap
+      for (char c = firstChar; c < lastChar; c++) {
+         SIZE charSize;
+         GetTextExtentPoint32(dc, &c, 1, &charSize);
+         // when we lookup a char in entries, subtract firstChar to get the index into the entries array
+         int idx = c - firstChar;
+
+         if ((X + charSize.cy) > 512) {
+            X = 0;
+            Y += metrics.tmHeight;
+         }
+
+         ps->entries[idx].codePoint = c;
+         ps->entries[idx].u = X;
+         ps->entries[idx].v = 512 - Y - charSize.cy; // convert to opengl coords (origin in lower left)
+         ps->entries[idx].w = charSize.cx;
+         ps->entries[idx].h = charSize.cy;
+
+         TextOut(dc, X, Y, &c, 1);
+
+         X += charSize.cx;
+      }
+
+      X = 0;
+      Y += metrics.tmHeight;
+   }
+
+   // write bitmap to file
+   GetObject(bitmap, sizeof(BITMAP), &data);
+
+   BITMAPFILEHEADER header = {};
+   BITMAPINFOHEADER bi = {};
+
+   bi.biSize = sizeof(BITMAPINFOHEADER);
+   bi.biWidth = data.bmWidth;
+   bi.biHeight = data.bmHeight;
+   bi.biPlanes = 1;
+   bi.biBitCount = 32;
+   bi.biCompression = BI_RGB;
+
+   DWORD bmpSize = ((data.bmWidth * bi.biBitCount + 31) / 32) * 4 * data.bmHeight;
+   char* imageData = (char*)malloc(bmpSize);
+
+   GetDIBits(dc, bitmap, 0, 512, imageData,(BITMAPINFO*)&bi, DIB_RGB_COLORS);
+
+   HANDLE f = CreateFile("test.bmp", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+   DWORD totalSize = bmpSize + sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+
+   header.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+   header.bfSize = totalSize;
+   header.bfType = 0x4D42;
+
+   DWORD byteCount = 0;
+   WriteFile(f, (char*)&header, sizeof(BITMAPFILEHEADER), &byteCount, NULL);
+   WriteFile(f, (char*)&bi, sizeof(BITMAPINFOHEADER), &byteCount, NULL);
+   WriteFile(f, imageData, bmpSize, &byteCount, NULL);
+
+   free(imageData);
+   CloseHandle(f);
+
+   DeleteObject(bitmap);
+   DeleteObject(dc);
+
+   result->textureData = imageData;
+   return result;
+}
+
+void free_screen_font(screen_font* f)
+{
+   for (int s = 0; s < f->numSizes; s++) {
+      free(f->sizes[s].entries);
+   }
+   free(f->sizes);
+   free(f->textureData);
+   free(f);
+}
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -211,6 +309,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
       if (initialize) {
 		   initialize(rect.right, rect.bottom);
       }
+
+      checkFontStuff(dc);
       break;
 	}
 	case WM_SIZE:
@@ -278,19 +378,13 @@ BOOL WindowsSetup(HINSTANCE hInstance, int nCmdShow)
 	return TRUE;
 }
 
-float PI = 3.14159;
-
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
-	_In_opt_ HINSTANCE hPrevInstance,
-	_In_ LPWSTR    lpCmdLine,
+	_In_opt_ HINSTANCE,
+	_In_ LPWSTR,
 	_In_ int       nCmdShow)
 {
-	UNREFERENCED_PARAMETER(hPrevInstance);
-	UNREFERENCED_PARAMETER(lpCmdLine);
 
 	// load game code first so the window can be initialized
-	buildGamePaths();
-
 	loadGameCode();
 
 	WindowsSetup(hInstance, nCmdShow);
