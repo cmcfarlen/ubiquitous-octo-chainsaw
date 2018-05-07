@@ -9,7 +9,9 @@ pushd ..\build
 
 del *.pdb > NUL 2> NUL
 
-cl %CFLAGS% ..\code\game.cpp -Fmgame.map -LD /link %LDFLAGS% glu32.lib
+echo "building" > lock.tmp
+cl %CFLAGS% ..\code\game.cpp -Fmgame.map -LD /link -PDB:game_%random%.pdb %LDFLAGS% glu32.lib
+del lock.tmp
 cl %CFLAGS% ..\code\win32_client.cpp -Fmwin32_game.map /link /SUBSYSTEM:windows %LDFLAGS%
 
 popd

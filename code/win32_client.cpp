@@ -14,6 +14,7 @@
 #include <strsafe.h>
 
 #include "types.h"
+#include "game.h"
 
 HDC gHdc;
 
@@ -48,14 +49,18 @@ unsigned long long getModifyTime(const char* f)
 	return i.QuadPart;
 }
 
-typedef void(*render_t)(float);
-typedef void(*initialize_t)(int, int); // width, height of the window
+typedef void(*render_t)(game_state*, float);
+typedef void(*initialize_t)(game_state*, int, int); // width, height of the window
+typedef game_state*(*create_game_state_t)();
 
 static render_t render = NULL;
 static initialize_t initialize = NULL;
+static create_game_state_t createGameState = NULL;
 static unsigned long long last_mode_time = 0;
 static HMODULE render_dll = NULL;
+static game_state GlobalState = {};
 
+static const char* full_path_to_lock = "lock.tmp";
 static const char* full_path_to_dll = "game.dll";
 static const char* full_path_to_dll_copy = "game_copy.dll";
 
@@ -75,7 +80,10 @@ void loadGameCode(void)
 
 		log("loading game code\n");
 		for (int tries = 0; tries < 100; tries++) {
-			if (CopyFileA(full_path_to_dll, full_path_to_dll_copy, FALSE)) {
+         WIN32_FILE_ATTRIBUTE_DATA Data;
+
+         if (GetFileAttributesEx(full_path_to_lock, GetFileExInfoStandard, &Data) == 0) {
+            CopyFileA(full_path_to_dll, full_path_to_dll_copy, FALSE);
 				log("loading renderer from %s\n", full_path_to_dll_copy);
 				HMODULE dll = LoadLibraryA(full_path_to_dll_copy);
 
@@ -86,6 +94,7 @@ void loadGameCode(void)
 
 				render = (render_t)GetProcAddress(dll, "render");
 				initialize = (initialize_t)GetProcAddress(dll, "initialize");
+            createGameState = (create_game_state_t)GetProcAddress(dll, "createGameState");
 
 				if (!render) {
 					log("Failed to get proc address for render");
@@ -94,6 +103,10 @@ void loadGameCode(void)
 				if (!initialize) {
 					log("Failed to get proc address for initialize");
 				}
+
+            if (!createGameState) {
+               log("Failed to get proc address for createGameState");
+            }
 
 				last_mode_time = now;
 				render_dll = dll;
@@ -307,7 +320,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		GetClientRect(hWnd, &rect);
 
       if (initialize) {
-		   initialize(rect.right, rect.bottom);
+		   initialize(&GlobalState, rect.right, rect.bottom);
       }
 
       checkFontStuff(dc);
@@ -321,7 +334,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		log("size window to: [%i %i]\n", rect.right, rect.bottom);
 
       if (initialize) {
-		   initialize(rect.right, rect.bottom);
+		   initialize(&GlobalState, rect.right, rect.bottom);
       }
       break;
 	}
@@ -416,7 +429,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
 		float dt = (float)diff / (float)perffreq.QuadPart;
       if (render) {
-		   render(dt);
+		   render(&GlobalState, dt);
       }
 
 		SwapBuffers(gHdc);

@@ -32,7 +32,7 @@ void render_centered_circle(vec3 c, float r, int cnt)
    glEnd();
 }
 
-void render_frame(float dt)
+void render_frame(game_state*, float dt)
 {
 
    // Drawing code here.
@@ -97,16 +97,54 @@ void render_frame(float dt)
    glPopMatrix();
 
 
-   glFlush();
 }
 
-void render_ui()
+void render_ui(game_state* state, float )
 {
+   int Width = state->WindowWidth;
+   int Height = state->WindowHeight;
 
+   glMatrixMode(GL_PROJECTION);
+   glPushMatrix();
+   glLoadIdentity();
+
+   gluOrtho2D(0, Width, 0, Height);
+
+   glMatrixMode(GL_MODELVIEW);
+   glPushMatrix();
+   glLoadIdentity();
+
+   glDisable(GL_LIGHTING);
+   glDisable(GL_DEPTH_TEST);
+   glEnable(GL_BLEND);
+   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+   glColor4f(1.0, 1.0f, 1.0f, 0.6f);
+
+   f32 X = 500;
+   f32 Y = 120;
+   f32 W = 200;
+   f32 H = 100;
+
+   glBegin(GL_QUADS);
+
+   glVertex3f(X, Y, 0);
+   glVertex3f(X, Y + H, 0);
+   glVertex3f(X+W, Y + H, 0);
+   glVertex3f(X+W, Y, 0);
+
+   glEnd();
+
+   glEnable(GL_LIGHTING);
+
+   glMatrixMode(GL_PROJECTION);
+   glPopMatrix();
+
+   glMatrixMode(GL_MODELVIEW);
+   glPopMatrix();
 }
 
 #define GL_SHADING_LANGUAGE_VERSION       0x8B8C
-
 
 extern "C" {
 
@@ -117,9 +155,12 @@ extern "C" {
       return st;
    }
 
-   __declspec(dllexport) void render(float dt)
+   __declspec(dllexport) void render(game_state* state, float dt)
    {
-      render_frame(dt);
+      render_frame(state, dt);
+      render_ui(state, dt);
+
+      glFlush();
    }
 
    typedef struct gl_information
@@ -131,9 +172,8 @@ extern "C" {
       const unsigned char* extensions;
    } gl_information;
 
-   __declspec(dllexport) void initialize(int width, int height)
+   __declspec(dllexport) void initialize(game_state* state, int width, int height)
    {
-
       gl_information info = {};
 
       info.vendor = glGetString(GL_VENDOR);
@@ -152,6 +192,8 @@ extern "C" {
 
       glViewport(0, 0, width, height);
 
+      state->WindowWidth = width;
+      state->WindowHeight = height;
    }
 }
 

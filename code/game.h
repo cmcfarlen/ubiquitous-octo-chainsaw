@@ -3,8 +3,8 @@
 
 struct game_state
 {
-   int windowWidth;
-   int windowHeight;
+   int WindowWidth;
+   int WindowHeight;
 
 };
 
