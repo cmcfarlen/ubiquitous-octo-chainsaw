@@ -83,8 +83,10 @@ union vec4
 struct screen_font_entry
 {
    char codePoint;
-   s32 u;
-   s32 v;
+   f32 u1;
+   f32 v1;
+   f32 u2;
+   f32 v2;
    s32 w;
    s32 h;
 };

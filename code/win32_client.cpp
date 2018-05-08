@@ -167,12 +167,11 @@ void initializeGL()
 	glClear(GL_COLOR_BUFFER_BIT);
 }
 
-screen_font* checkFontStuff(HDC dcIn)
+screen_font* checkFontStuff(HDC dcIn, int Width, int Height, const char* fontName)
 {
    HDC dc = CreateCompatibleDC(dcIn);
-   HBITMAP bitmap = CreateCompatibleBitmap(dc, 512, 512);
+   HBITMAP bitmap = CreateCompatibleBitmap(dc, Width, Height);
    BITMAP data;
-   const char* fontName = "Small Fonts Regular"; //   "Droid Sans Mono Slashed"
 
    SelectObject(dc, bitmap);
    int fontSizes[] = {12, 18, 24, 36, 0};
@@ -211,13 +210,6 @@ screen_font* checkFontStuff(HDC dcIn)
       ps->size = fontSizes[i];
       ps->entries = (screen_font_entry*)malloc(sizeof(screen_font_entry) * (lastChar - firstChar + 1));
 
-      /*
-      int cnt = GetTextFace(dc, 0, NULL);
-      char* textFace = (char*)malloc(cnt);
-      GetTextFace(dc, cnt, textFace);
-      log("text face %s\n", textFace);
-      */
-
       TEXTMETRIC metrics;
       GetTextMetrics(dc, &metrics);
 
@@ -228,20 +220,26 @@ screen_font* checkFontStuff(HDC dcIn)
          // when we lookup a char in entries, subtract firstChar to get the index into the entries array
          int idx = c - firstChar;
 
-         if ((X + charSize.cy) > 512) {
+         if ((X + charSize.cy) > Width) {
             X = 0;
             Y += metrics.tmHeight;
          }
+         f32 u = X / (f32)Width;
+         f32 v = (Height - Y - charSize.cy) / (f32)Height; // convert to opengl coords (origin in lower left)
+
+         int advance = charSize.cx + 2;
 
          ps->entries[idx].codePoint = c;
-         ps->entries[idx].u = X;
-         ps->entries[idx].v = 512 - Y - charSize.cy; // convert to opengl coords (origin in lower left)
+         ps->entries[idx].u1 = u;
+         ps->entries[idx].v1 = v;
+         ps->entries[idx].u2 = u + charSize.cx / (f32)Width;
+         ps->entries[idx].v2 = v + charSize.cy / (f32)Height;
          ps->entries[idx].w = charSize.cx;
          ps->entries[idx].h = charSize.cy;
 
          TextOut(dc, X, Y, &c, 1);
 
-         X += charSize.cx;
+         X += advance;
       }
 
       X = 0;
@@ -264,7 +262,7 @@ screen_font* checkFontStuff(HDC dcIn)
    DWORD bmpSize = ((data.bmWidth * bi.biBitCount + 31) / 32) * 4 * data.bmHeight;
    char* imageData = (char*)malloc(bmpSize);
 
-   GetDIBits(dc, bitmap, 0, 512, imageData,(BITMAPINFO*)&bi, DIB_RGB_COLORS);
+   GetDIBits(dc, bitmap, 0, Width, imageData,(BITMAPINFO*)&bi, DIB_RGB_COLORS);
 
    HANDLE f = CreateFile("test.bmp", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
@@ -279,7 +277,6 @@ screen_font* checkFontStuff(HDC dcIn)
    WriteFile(f, (char*)&bi, sizeof(BITMAPINFOHEADER), &byteCount, NULL);
    WriteFile(f, imageData, bmpSize, &byteCount, NULL);
 
-   free(imageData);
    CloseHandle(f);
 
    DeleteObject(bitmap);
@@ -316,6 +313,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		initializeGL();
 
+      GlobalState.TheFont = checkFontStuff(dc, 512, 512, "Droid Sans Mono Slashed"); //"Small Fonts Regular");
+
 		RECT rect;
 		GetClientRect(hWnd, &rect);
 
@@ -323,7 +322,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		   initialize(&GlobalState, rect.right, rect.bottom);
       }
 
-      checkFontStuff(dc);
       break;
 	}
 	case WM_SIZE:
