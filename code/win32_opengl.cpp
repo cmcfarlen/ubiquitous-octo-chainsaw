@@ -431,7 +431,6 @@ bool InitializeRenderer(renderer* r)
    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), NULL);
    glEnableVertexAttribArray(0);
 
-
 	glClear(GL_COLOR_BUFFER_BIT);
    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
@@ -458,6 +457,8 @@ bool ResizeWindow(renderer* r, int width, int height)
 void RenderFrame(renderer* r)
 {
    glFinish();
+
+   glClear(GL_COLOR_BUFFER_BIT);
 
    glUseProgram(r->shaderProgram);
    glBindVertexArray(r->VAO);

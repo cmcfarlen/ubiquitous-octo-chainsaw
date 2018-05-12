@@ -88,7 +88,7 @@ bool loadDll(dll_watch* watch)
 					log("Got error %i\n", err);
 				}
 
-            watch->lastModifyTime = now;
+            watch->lastModifyTime = getModifyTime(watch->path);
             watch->handle = dll;
 				break;
 			}
@@ -381,6 +381,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
       if (loadDll(&renderWatch)) {
          log("Reloading Renderer\n");
          loadRenderAPI(&RenderAPI, renderWatch.handle);
+         Win32SelectRenderContext(&OpenGLContext);
          RenderAPI.InitializeRenderer(&Renderer);
       }
 
