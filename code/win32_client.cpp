@@ -7,16 +7,19 @@
 #include <memory.h>
 #include <tchar.h>
 #include <math.h>
+#include <assert.h>
 
 #include <stdio.h>
 
-#include <gl/GL.h>
 #include <strsafe.h>
 
-#include "types.h"
-#include "game.h"
+//#include "types.h"
+//#include "game.h"
+//
 
-HDC gHdc;
+#include "win32_opengl.h"
+#include "renderer.h"
+#include "platform.h"
 
 void log(const char* fmt, ...)
 {
@@ -49,67 +52,44 @@ unsigned long long getModifyTime(const char* f)
 	return i.QuadPart;
 }
 
-typedef void(*render_t)(game_state*, float);
-typedef void(*initialize_t)(game_state*, int, int); // width, height of the window
-typedef game_state*(*create_game_state_t)();
-
-static render_t render = NULL;
-static initialize_t initialize = NULL;
-static create_game_state_t createGameState = NULL;
-static unsigned long long last_mode_time = 0;
-static HMODULE render_dll = NULL;
-static game_state GlobalState = {};
-
-static const char* full_path_to_lock = "lock.tmp";
-static const char* full_path_to_dll = "game.dll";
-static const char* full_path_to_dll_copy = "game_copy.dll";
-
-// load the game code dll
-void loadGameCode(void)
+typedef struct dll_watch
 {
-	unsigned long long now = getModifyTime(full_path_to_dll);
+   const char* path;
+   const char* pathCopy;
+   const char* pathLock;
+   unsigned long long lastModifyTime;
+   HMODULE handle;
+} dll_watch;
 
-	if (now != last_mode_time) {
-		if (render_dll) {
+// Maybe load a watched dll, return true if it was reloaded
+bool loadDll(dll_watch* watch)
+{
+	unsigned long long now = getModifyTime(watch->path);
+
+	if (now != watch->lastModifyTime) {
+		if (watch->handle) {
 			log("Unloading library.\n");
-			if (FreeLibrary(render_dll) == 0) {
+			if (FreeLibrary(watch->handle) == 0) {
 				log("Error freeing library: %i\n", GetLastError());
 			}
-			render_dll = NULL;
+			watch->handle = NULL;
 		}
 
-		log("loading game code\n");
+		log("loading dll: %s\n", watch->path);
 		for (int tries = 0; tries < 100; tries++) {
          WIN32_FILE_ATTRIBUTE_DATA Data;
 
-         if (GetFileAttributesEx(full_path_to_lock, GetFileExInfoStandard, &Data) == 0) {
-            CopyFileA(full_path_to_dll, full_path_to_dll_copy, FALSE);
-				log("loading renderer from %s\n", full_path_to_dll_copy);
-				HMODULE dll = LoadLibraryA(full_path_to_dll_copy);
+         if (GetFileAttributesEx(watch->pathLock, GetFileExInfoStandard, &Data) == 0) {
+            CopyFileA(watch->path, watch->pathCopy, FALSE);
+				HMODULE dll = LoadLibraryA(watch->pathCopy);
 
 				if (dll == NULL) {
 					DWORD err = GetLastError();
 					log("Got error %i\n", err);
 				}
 
-				render = (render_t)GetProcAddress(dll, "render");
-				initialize = (initialize_t)GetProcAddress(dll, "initialize");
-            createGameState = (create_game_state_t)GetProcAddress(dll, "createGameState");
-
-				if (!render) {
-					log("Failed to get proc address for render");
-				}
-
-				if (!initialize) {
-					log("Failed to get proc address for initialize");
-				}
-
-            if (!createGameState) {
-               log("Failed to get proc address for createGameState");
-            }
-
-				last_mode_time = now;
-				render_dll = dll;
+            watch->lastModifyTime = now;
+            watch->handle = dll;
 				break;
 			}
 			else {
@@ -117,56 +97,15 @@ void loadGameCode(void)
 			}
 		}
 
-		if (render_dll == NULL) {
-			log("Failed to copy dll %i\n", GetLastError());
-		}
+      assert(watch->handle);
 		
+      return true;
 	}
 	
+   return false;
 }
 
-BOOL bSetupPixelFormat(HDC hdc)
-{
-	PIXELFORMATDESCRIPTOR pfd, *ppfd;
-	int pixelformat;
-
-	ppfd = &pfd;
-
-	ppfd->nSize = sizeof(PIXELFORMATDESCRIPTOR);
-	ppfd->nVersion = 1;
-	ppfd->dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
-	ppfd->dwLayerMask = PFD_MAIN_PLANE;
-	ppfd->iPixelType = PFD_TYPE_COLORINDEX;
-	ppfd->cColorBits = 8;
-	ppfd->cDepthBits = 16;
-	ppfd->cAccumBits = 0;
-	ppfd->cStencilBits = 0;
-
-	pixelformat = ChoosePixelFormat(hdc, ppfd);
-
-	if ((pixelformat = ChoosePixelFormat(hdc, ppfd)) == 0)
-	{
-		MessageBoxW(NULL, L"ChoosePixelFormat failed", L"Error", MB_OK);
-		return FALSE;
-	}
-
-	if (SetPixelFormat(hdc, pixelformat, ppfd) == FALSE)
-	{
-		MessageBoxW(NULL, L"SetPixelFormat failed", L"Error", MB_OK);
-		return FALSE;
-	}
-
-	return TRUE;
-}
-
-void initializeGL()
-{
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	
-
-	glClear(GL_COLOR_BUFFER_BIT);
-}
-
+#if 0
 screen_font* checkFontStuff(HDC dcIn, int Width, int Height, const char* fontName)
 {
    HDC dc = CreateCompatibleDC(dcIn);
@@ -295,6 +234,17 @@ void free_screen_font(screen_font* f)
    free(f->textureData);
    free(f);
 }
+#endif
+
+Win32SetupRenderContext_t Win32SetupRenderContext = 0;
+Win32SelectRenderContext_t Win32SelectRenderContext = 0;
+
+platform_api Platform = { log };
+
+// global renderer
+static renderer_api RenderAPI = {};
+static win32_opengl_render_context OpenGLContext = {};
+static renderer Renderer = {};
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -303,24 +253,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 	case WM_CREATE:
 	{
-		HDC dc = gHdc = GetDC(hWnd);
 
-		bSetupPixelFormat(dc);
+      Win32SetupRenderContext(hWnd, &Platform, &OpenGLContext);
+      Win32SelectRenderContext(&OpenGLContext);
 
-		HGLRC glContext = wglCreateContext(dc);
+      RenderAPI.InitializeRenderer(&Renderer);
 
-		wglMakeCurrent(dc, glContext);
-
-		initializeGL();
-
+#if 0
       GlobalState.TheFont = checkFontStuff(dc, 512, 512, "Droid Sans Mono Slashed"); //"Small Fonts Regular");
+#endif
 
 		RECT rect;
 		GetClientRect(hWnd, &rect);
 
-      if (initialize) {
-		   initialize(&GlobalState, rect.right, rect.bottom);
-      }
+      RenderAPI.ResizeWindow(&Renderer, rect.right, rect.bottom);
 
       break;
 	}
@@ -331,9 +277,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		log("size window to: [%i %i]\n", rect.right, rect.bottom);
 
-      if (initialize) {
-		   initialize(&GlobalState, rect.right, rect.bottom);
-      }
+      RenderAPI.ResizeWindow(&Renderer, rect.right, rect.bottom);
       break;
 	}
 	case WM_PAINT:
@@ -362,7 +306,7 @@ BOOL WindowsSetup(HINSTANCE hInstance, int nCmdShow)
 
 	wcex.cbSize = sizeof(WNDCLASSEX);
 
-	wcex.style = CS_HREDRAW | CS_VREDRAW;
+	wcex.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
 	wcex.lpfnWndProc = WndProc;
 	wcex.cbClsExtra = 0;
 	wcex.cbWndExtra = 0;
@@ -389,14 +333,27 @@ BOOL WindowsSetup(HINSTANCE hInstance, int nCmdShow)
 	return TRUE;
 }
 
+void loadRenderAPI(renderer_api* api, HMODULE dll)
+{
+   Win32SetupRenderContext = (Win32SetupRenderContext_t)GetProcAddress(dll, "Win32SetupRenderContext");
+   Win32SelectRenderContext = (Win32SelectRenderContext_t)GetProcAddress(dll, "Win32SelectRenderContext");
+
+   api->InitializeRenderer = (InitializeRenderer_t)GetProcAddress(dll, "InitializeRenderer");
+   api->ResizeWindow = (ResizeWindow_t)GetProcAddress(dll, "ResizeWindow");
+   api->RenderFrame = (RenderFrame_t)GetProcAddress(dll, "RenderFrame");
+}
+
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE,
 	_In_ LPWSTR,
 	_In_ int       nCmdShow)
 {
 
+   dll_watch renderWatch = {"win32_opengl.dll", "win32_opengl_copy.dll", "render_lock.tmp", 0, 0};
+
 	// load game code first so the window can be initialized
-	loadGameCode();
+   loadDll(&renderWatch);
+   loadRenderAPI(&RenderAPI, renderWatch.handle);
 
 	WindowsSetup(hInstance, nCmdShow);
 
@@ -421,17 +378,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			DispatchMessage(&msg);
 		}
 		// maybe load the game code
-		loadGameCode();
-		QueryPerformanceCounter(&now);
-		LONGLONG diff = now.QuadPart - prev.QuadPart;
-
-		float dt = (float)diff / (float)perffreq.QuadPart;
-      if (render) {
-		   render(&GlobalState, dt);
+      if (loadDll(&renderWatch)) {
+         log("Reloading Renderer\n");
+         loadRenderAPI(&RenderAPI, renderWatch.handle);
+         RenderAPI.InitializeRenderer(&Renderer);
       }
 
-		SwapBuffers(gHdc);
-		glFinish();
+		QueryPerformanceCounter(&now);
+		LONGLONG diff = now.QuadPart - prev.QuadPart;
+		float dt = (float)diff / (float)perffreq.QuadPart;
+
+      RenderAPI.RenderFrame(&Renderer);
+		SwapBuffers(OpenGLContext.dc);
 
 		frame++;
 		if ((frame % 100) == 0) {
@@ -441,6 +399,4 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
    return (int) msg.wParam;
 }
-
-
 
