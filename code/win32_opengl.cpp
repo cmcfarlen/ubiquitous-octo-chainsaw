@@ -2,6 +2,11 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#include <stdlib.h>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 // win32 has to manage its own gl function loading
 #include "glcorearb.h"
 
@@ -13,6 +18,12 @@ GLAPI void APIENTRY glPolygonMode (GLint, GLint);
 GLAPI void APIENTRY glFinish (void);
 GLAPI unsigned char* APIENTRY glGetString (GLint);
 GLAPI void APIENTRY glViewport (GLint x, GLint y, GLsizei width, GLsizei height);
+GLAPI void APIENTRY glGenTextures (GLsizei n, GLuint* textures);
+GLAPI void APIENTRY glDeleteTextures(GLsizei n, const GLuint * textures); 
+GLAPI void APIENTRY glBindTexture (GLenum target, GLuint texture);
+GLAPI void APIENTRY glTexParameteri(GLenum target, GLenum name, GLint param);
+GLAPI void APIENTRY glTexParameterf(GLenum target, GLenum name, GLfloat param);
+GLAPI void APIENTRY glTexImage2D (GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void *pixels);
 }
 
 // loaded functions
@@ -41,6 +52,7 @@ PFNGLBINDBUFFERPROC glBindBuffer = 0;
 PFNGLDELETEBUFFERSPROC glDeleteBuffers = 0;
 PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays = 0;
 PFNGLDELETEPROGRAMPROC glDeleteProgram = 0;
+PFNGLGENERATEMIPMAPPROC glGenerateMipmap = 0;
 
 
 // wgl defines
@@ -266,12 +278,102 @@ void LoadGL()
    glDeleteBuffers = (PFNGLDELETEBUFFERSPROC)wglGetProcAddress("glDeleteBuffers");
    glDeleteVertexArrays = (PFNGLDELETEVERTEXARRAYSPROC)wglGetProcAddress("glDeleteVertexArrays");
    glDeleteProgram = (PFNGLDELETEPROGRAMPROC)wglGetProcAddress("glDeleteProgram");
+   glGenerateMipmap = (PFNGLGENERATEMIPMAPPROC)wglGetProcAddress("glGenerateMipmap");
+
 }
 
 #include "win32_opengl.h"
 #include "renderer.h"
 
 platform_api Platform;
+
+// renderer implementation
+
+GLuint compileShader(const char* vertexName, const char* fragmentName)
+{
+   unsigned int vertexShader;
+   unsigned int fragmentShader;
+   unsigned int shaderProgram;
+   int success;
+   char infoLog[512];
+   
+   u32 vertexShaderLength = 0;
+   char* vertexShaderSource = (char*)Platform.slurp(vertexName, &vertexShaderLength);
+   u32 fragmentShaderLength = 0;
+   char* fragmentShaderSource = (char*)Platform.slurp(fragmentName, &fragmentShaderLength);
+
+   // shader shit
+   vertexShader = glCreateShader(GL_VERTEX_SHADER);
+   glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+   glCompileShader(vertexShader);
+
+   glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+
+   if (!success) {
+      glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+      Platform.log("Failed to compile vertex shader: %s\n", infoLog);
+   }
+
+   fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+   glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+   glCompileShader(fragmentShader);
+
+   glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+
+   if (!success) {
+      glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+      Platform.log("Failed to compile fragment shader: %s\n", infoLog);
+   }
+
+   shaderProgram = glCreateProgram();
+
+   glAttachShader(shaderProgram, vertexShader);
+   glAttachShader(shaderProgram, fragmentShader);
+   glLinkProgram(shaderProgram);
+
+   glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+   if (!success) {
+      glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+      Platform.log("Failed to compile fragment shader: %s\n", infoLog);
+   }
+
+   glDeleteShader(vertexShader);
+   glDeleteShader(fragmentShader);
+   free(vertexShaderSource);
+   free(fragmentShaderSource);
+
+   return shaderProgram;
+}
+
+GLuint createTexture(const char* resource)
+{
+   u32 size = 0;
+   u8 *resourceData = Platform.slurp(resource, &size);
+   int width, height, channels;
+   stbi_uc* imageData = stbi_load_from_memory((stbi_uc const*)resourceData, (int)size, &width, &height, &channels, 0);
+   unsigned int texture;
+
+   glGenTextures(1, &texture);
+   glBindTexture(GL_TEXTURE_2D, texture);
+
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+   GLenum type = GL_RGBA;
+   if (channels == 3) {
+      type = GL_RGB;
+   }
+
+   glTexImage2D(GL_TEXTURE_2D, 0, type, width, height, 0, type, GL_UNSIGNED_BYTE, imageData);
+   glGenerateMipmap(GL_TEXTURE_2D);
+
+   stbi_image_free(imageData);
+   free(resourceData);
+
+   return texture;
+}
 
 // dll api for win32 renderer management
 extern "C" {
@@ -333,87 +435,33 @@ bool InitializeRenderer(renderer* r)
    // load opengl api on intialize in case of dll reload
    LoadGL();
 
-	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glClearColor(0.2f, 0.2f, 0.2f, 1.0);
 	
    if (r->VBO) {
       glDeleteBuffers(1, &r->VBO);
       glDeleteBuffers(1, &r->EBO);
       glDeleteVertexArrays(1, &r->VAO);
-      glDeleteShader(r->fragmentShader);
-      glDeleteShader(r->vertexShader);
       glDeleteProgram(r->shaderProgram);
    }
 
+   if (r->texture) {
+      glDeleteTextures(1, &r->texture);
+   }
+
    float vertices[] = {
-       0.5f,  0.5f, 0.0f,
-       0.5f, -0.5f, 0.0f,
-      -0.5f, -0.5f, 0.0f,
-      -0.5f,  0.5f, 0.0f
+      // positions          // colors          // texture
+       0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,  1.0f, 1.0f,   // top right
+       0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,  1.0f, 0.0f,   // bottom right
+      -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,  0.0f, 0.0f,   // bottom left
+      -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,  0.0f, 1.0f
    };
    unsigned int indices[] = {
       0, 1, 3, 1, 2, 3
    };
-   const char* vertexShaderSource =
-      "#version 330 core\n"
-      "layout (location = 0) in vec3 aPos;\n"
-      "\n"
-      "void main()\n"
-      "{\n"
-      "    gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-      "}\n\0";
-   const char* fragmentShaderSource =
-      "#version 330 core\n"
-      "out vec4 FragColor;\n"
-      "\n"
-      "void main()\n"
-      "{\n"
-      "    FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-      "}\n\0";
-   int success;
-   char infoLog[512];
-   
+
    unsigned int VBO;
    unsigned int VAO;
    unsigned int EBO;
-   unsigned int vertexShader;
-   unsigned int fragmentShader;
-   unsigned int shaderProgram;
-
-   // shader shit
-   vertexShader = glCreateShader(GL_VERTEX_SHADER);
-   glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-   glCompileShader(vertexShader);
-
-   glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-
-   if (!success) {
-      glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-      Platform.log("Failed to compile vertex shader: %s\n", infoLog);
-   }
-
-   fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-   glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-   glCompileShader(fragmentShader);
-
-   glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-
-   if (!success) {
-      glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-      Platform.log("Failed to compile fragment shader: %s\n", infoLog);
-   }
-
-   shaderProgram = glCreateProgram();
-
-   glAttachShader(shaderProgram, vertexShader);
-   glAttachShader(shaderProgram, fragmentShader);
-   glLinkProgram(shaderProgram);
-
-   glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-   if (!success) {
-      glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-      Platform.log("Failed to compile fragment shader: %s\n", infoLog);
-   }
-
    // buffer shit
    glGenBuffers(1, &VBO);
    glGenBuffers(1, &EBO);
@@ -428,18 +476,21 @@ bool InitializeRenderer(renderer* r)
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), NULL);
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), NULL);
    glEnableVertexAttribArray(0);
+   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3*sizeof(float)));
+   glEnableVertexAttribArray(1);
+   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6*sizeof(float)));
+   glEnableVertexAttribArray(2);
 
 	glClear(GL_COLOR_BUFFER_BIT);
-   glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
    r->VBO = VBO;
    r->VAO = VAO;
    r->EBO = EBO;
-   r->vertexShader = vertexShader;
-   r->fragmentShader = fragmentShader;
-   r->shaderProgram = shaderProgram;
+   r->texture = createTexture("container.jpg");
+   r->shaderProgram = compileShader("texture_tutorial.vert", "texture_tutorial.frag");
 
    return true;
 }
@@ -461,12 +512,12 @@ void RenderFrame(renderer* r)
    glClear(GL_COLOR_BUFFER_BIT);
 
    glUseProgram(r->shaderProgram);
+   glBindTexture(GL_TEXTURE_2D, r->texture);
    glBindVertexArray(r->VAO);
 
   // glDrawArrays(GL_TRIANGLES, 0, 3);
    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-   // this is unbinding the vertex array?
    glBindVertexArray(0);
 }
 

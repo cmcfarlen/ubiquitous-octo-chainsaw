@@ -34,6 +34,31 @@ void log(const char* fmt, ...)
 	OutputDebugStringA(buff);
 }
 
+u8* slurp(const char* resource, u32* size)
+{
+   char path[512];
+
+   StringCbPrintfA(path, sizeof(path), "..\\data\\%s", resource);
+
+   HANDLE h = CreateFile(path, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+   LARGE_INTEGER fs = {};
+
+   GetFileSizeEx(h, &fs);
+
+   *size = fs.LowPart;
+   u32 toRead = *size;
+   u32 bc = 0;
+   u8* data = (u8*)malloc(*size);
+
+   ReadFile(h, data, toRead, &bc, 0);
+
+   assert(toRead == bc);
+
+   CloseHandle(h);
+
+   return data;
+}
+
 unsigned long long getModifyTime(const char* f)
 {
 	FILETIME mtime;
@@ -239,7 +264,7 @@ void free_screen_font(screen_font* f)
 Win32SetupRenderContext_t Win32SetupRenderContext = 0;
 Win32SelectRenderContext_t Win32SelectRenderContext = 0;
 
-platform_api Platform = { log };
+platform_api Platform = { log, slurp };
 
 // global renderer
 static renderer_api RenderAPI = {};
