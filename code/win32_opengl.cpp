@@ -32,6 +32,7 @@ PFNGLGENBUFFERSPROC glGenBuffers = 0;
 PFNGLGENVERTEXARRAYSPROC glGenVertexArrays = 0;
 PFNGLBINDVERTEXARRAYPROC glBindVertexArray = 0;
 PFNGLBUFFERDATAPROC glBufferData = 0;
+PFNGLBUFFERSUBDATAPROC glBufferSubData = 0;
 PFNGLCREATESHADERPROC glCreateShader = 0;
 PFNGLSHADERSOURCEPROC glShaderSource = 0;
 PFNGLCOMPILESHADERPROC glCompileShader = 0;
@@ -53,6 +54,8 @@ PFNGLDELETEBUFFERSPROC glDeleteBuffers = 0;
 PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays = 0;
 PFNGLDELETEPROGRAMPROC glDeleteProgram = 0;
 PFNGLGENERATEMIPMAPPROC glGenerateMipmap = 0;
+PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation = 0;
+PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv = 0;
 
 
 // wgl defines
@@ -258,6 +261,7 @@ void LoadGL()
    glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)wglGetProcAddress("glGenVertexArrays");
    glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)wglGetProcAddress("glBindVertexArray");
    glBufferData = (PFNGLBUFFERDATAPROC)wglGetProcAddress("glBufferData");
+   glBufferSubData = (PFNGLBUFFERSUBDATAPROC)wglGetProcAddress("glBufferSubData");
    glCreateShader = (PFNGLCREATESHADERPROC)wglGetProcAddress("glCreateShader");
    glShaderSource = (PFNGLSHADERSOURCEPROC)wglGetProcAddress("glShaderSource");
    glCompileShader = (PFNGLCOMPILESHADERPROC)wglGetProcAddress("glCompileShader");
@@ -279,15 +283,342 @@ void LoadGL()
    glDeleteVertexArrays = (PFNGLDELETEVERTEXARRAYSPROC)wglGetProcAddress("glDeleteVertexArrays");
    glDeleteProgram = (PFNGLDELETEPROGRAMPROC)wglGetProcAddress("glDeleteProgram");
    glGenerateMipmap = (PFNGLGENERATEMIPMAPPROC)wglGetProcAddress("glGenerateMipmap");
-
+   glGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC)wglGetProcAddress("glGetUniformLocation");
+   glUniformMatrix4fv = (PFNGLUNIFORMMATRIX4FVPROC)wglGetProcAddress("glUniformMatrix4fv");
 }
 
 #include "win32_opengl.h"
 #include "renderer.h"
 
+// renderer implementation
+
 platform_api Platform;
 
-// renderer implementation
+mat4 IdentityMatrix()
+{
+   mat4 r;
+
+   r.m[0] = 1; r.m[4] = 0; r.m[ 8] = 0; r.m[12] = 0;
+   r.m[1] = 0; r.m[5] = 1; r.m[ 9] = 0; r.m[13] = 0;
+   r.m[2] = 0; r.m[6] = 0; r.m[10] = 1; r.m[14] = 0;
+   r.m[3] = 0; r.m[7] = 0; r.m[11] = 0; r.m[15] = 1;
+
+   return r;
+}
+
+mat4 Ortho2D(f32 w, f32 h, f32 n = -1, f32 f = 1)
+{
+   mat4 r;
+
+   r.m[0] = 2.0f/w; r.m[4] =      0; r.m[ 8] =        0; r.m[12] =           -1;
+   r.m[1] =      0; r.m[5] = 2.0f/h; r.m[ 9] =        0; r.m[13] =           -1;
+   r.m[2] =      0; r.m[6] =      0; r.m[10] = -2/(f-n); r.m[14] = -(f+n)/(f-n);
+   r.m[3] =      0; r.m[7] =      0; r.m[11] =        0; r.m[15] =            1;
+
+   return r;
+}
+
+textured_vertex_buffer* createTexturedVertexBuffer(u32 max)
+{
+   textured_vertex_buffer* result = (textured_vertex_buffer*)malloc(sizeof(textured_vertex_buffer));
+   textured_vertex* vertices = (textured_vertex*)malloc(max * sizeof(textured_vertex));
+   u32* indices = (u32*)malloc(max * 2 * sizeof(u32));
+
+   result->max = max;
+   result->vcnt = 0;
+   result->icnt = 0;
+   result->vertices = vertices;
+   result->indices = indices;
+
+   glGenBuffers(2, result->buffers);
+   glGenVertexArrays(1, &result->vao);
+
+   glBindVertexArray(result->vao);
+
+   glBindBuffer(GL_ARRAY_BUFFER, result->buffers[0]);
+   glBufferData(GL_ARRAY_BUFFER, max * sizeof(textured_vertex), 0, GL_STREAM_DRAW);
+
+   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, result->buffers[1]);
+   glBufferData(GL_ELEMENT_ARRAY_BUFFER, max * 2 * sizeof(u32), 0, GL_STREAM_DRAW);
+
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), NULL);
+   glEnableVertexAttribArray(0);
+   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3*sizeof(f32)));
+   glEnableVertexAttribArray(1);
+
+   glBindVertexArray(0);
+
+   return result;
+}
+
+void freeTexturedVertexBuffer(textured_vertex_buffer* tvb)
+{
+   glDeleteBuffers(2, tvb->buffers);
+   glDeleteVertexArrays(1, &tvb->vao);
+   free(tvb->indices);
+   free(tvb->vertices);
+   free(tvb);
+}
+
+void drawTexturedVertexBuffer(textured_vertex_buffer* tvb)
+{
+   glBindVertexArray(tvb->vao);
+
+   glBindBuffer(GL_ARRAY_BUFFER, tvb->buffers[0]);
+   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(textured_vertex), tvb->vertices);
+
+   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tvb->buffers[1]);
+   glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, tvb->icnt * sizeof(u32), tvb->indices);
+
+   glDrawElements(GL_TRIANGLES, tvb->icnt, GL_UNSIGNED_INT, 0);
+
+   tvb->vcnt = 0;
+   tvb->icnt = 0;
+}
+
+void addTextured2DQuad(textured_vertex_buffer* b, vec2 pll, vec2 pur, vec2 tll, vec2 tur)
+{
+   u32 v = b->vcnt;
+   u32 i = b->icnt;
+
+   b->vertices[v+0].P = vec3(pur); // top right
+   b->vertices[v+0].T = tur;
+   b->vertices[v+1].P = vec3(pur.x, pll.y); // bottom right
+   b->vertices[v+1].T = vec2(tur.x, tll.y);
+   b->vertices[v+2].P = vec3(pll); // bottom left
+   b->vertices[v+2].T = tll;
+   b->vertices[v+3].P = vec3(pll.x, pur.y); // top left
+   b->vertices[v+3].T = vec2(tll.x, tur.y);
+
+   b->indices[i+0] = v + 0;
+   b->indices[i+1] = v + 1;
+   b->indices[i+2] = v + 3;
+   b->indices[i+3] = v + 1;
+   b->indices[i+4] = v + 2;
+   b->indices[i+5] = v + 3;
+
+
+   b->vcnt += 4;
+   b->icnt += 6;
+}
+
+screen_font* createFont(int Width, int Height, const char* fontName)
+{
+   HDC dc = CreateCompatibleDC(0);
+   HBITMAP bitmap = CreateCompatibleBitmap(dc, Width, Height);
+   BITMAP data;
+
+   SelectObject(dc, bitmap);
+   int fontSizes[] = {12, 18, 24, 36, 0};
+   char firstChar = 0x21;
+   char lastChar = 0x7e;
+   int X = 0;
+   int Y = 0;
+
+   // TODO(dad): don't use malloc
+   screen_font* result = (screen_font*)malloc(sizeof(screen_font));
+
+   result->fontName = _strdup(fontName);
+   result->numSizes = 4;
+   result->sizes = (screen_font_size*)malloc(sizeof(screen_font_size) * 4);
+
+   //SetBkMode(dc, TRANSPARENT);
+   SetBkMode(dc, RGB(0, 0, 0));
+   SetTextColor(dc, RGB(0xff, 0xff, 0xff));
+
+   for (int i = 0; fontSizes[i]; i++) {
+      HFONT font = CreateFont(fontSizes[i], 0, 0, 0, 
+            FW_BOLD, 0, 0, 0,
+            DEFAULT_CHARSET,
+            OUT_OUTLINE_PRECIS,
+            CLIP_DEFAULT_PRECIS,
+            PROOF_QUALITY,
+            FF_MODERN,
+            fontName);
+
+      SelectObject(dc, font);
+      TEXTMETRIC metrics;
+      GetTextMetrics(dc, &metrics);
+
+      screen_font_size* ps = result->sizes + i;
+
+      ps->size = fontSizes[i];
+      ps->firstChar = firstChar;
+      ps->lastChar = lastChar;
+      ps->entries = (screen_font_entry*)malloc(sizeof(screen_font_entry) * (lastChar - firstChar + 1));
+      ps->lineHeight = metrics.tmHeight;
+
+      // for every character, get the size and write to bitmap
+      for (char c = firstChar; c < lastChar; c++) {
+         SIZE charSize;
+         GetTextExtentPoint32(dc, &c, 1, &charSize);
+         // when we lookup a char in entries, subtract firstChar to get the index into the entries array
+         int idx = c - firstChar;
+
+         if ((X + charSize.cy) > Width) {
+            X = 0;
+            Y += metrics.tmHeight;
+         }
+         f32 u = X / (f32)Width;
+         f32 v = (Height - Y - charSize.cy) / (f32)Height; // convert to opengl coords (origin in lower left)
+
+         int advance = charSize.cx + 2;
+
+         ps->entries[idx].codePoint = c;
+         ps->entries[idx].u1 = u;
+         ps->entries[idx].v1 = v;
+         ps->entries[idx].u2 = u + charSize.cx / (f32)Width;
+         ps->entries[idx].v2 = v + charSize.cy / (f32)Height;
+         ps->entries[idx].w = charSize.cx;
+         ps->entries[idx].h = charSize.cy;
+
+         TextOut(dc, X, Y, &c, 1);
+
+         X += advance;
+      }
+
+      X = 0;
+      Y += metrics.tmHeight;
+   }
+
+   // write bitmap to file
+   GetObject(bitmap, sizeof(BITMAP), &data);
+
+   BITMAPFILEHEADER header = {};
+   BITMAPINFOHEADER bi = {};
+
+   bi.biSize = sizeof(BITMAPINFOHEADER);
+   bi.biWidth = data.bmWidth;
+   bi.biHeight = data.bmHeight;
+   bi.biPlanes = 1;
+   bi.biBitCount = 32;
+   bi.biCompression = BI_RGB;
+
+   DWORD bmpSize = ((data.bmWidth * bi.biBitCount + 31) / 32) * 4 * data.bmHeight;
+   char* imageData = (char*)malloc(bmpSize);
+
+   GetDIBits(dc, bitmap, 0, Width, imageData,(BITMAPINFO*)&bi, DIB_RGB_COLORS);
+
+   HANDLE f = CreateFile("test.bmp", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+   DWORD totalSize = bmpSize + sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+
+   header.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+   header.bfSize = totalSize;
+   header.bfType = 0x4D42;
+
+   DWORD byteCount = 0;
+   WriteFile(f, (char*)&header, sizeof(BITMAPFILEHEADER), &byteCount, NULL);
+   WriteFile(f, (char*)&bi, sizeof(BITMAPINFOHEADER), &byteCount, NULL);
+   WriteFile(f, imageData, bmpSize, &byteCount, NULL);
+
+   CloseHandle(f);
+
+   DeleteObject(bitmap);
+   DeleteObject(dc);
+
+   result->textureData = imageData;
+   return result;
+}
+
+screen_font_size* findFontSize(screen_font* font, int size)
+{
+   screen_font_size* p = font->sizes;
+   for (int i = 0; i < font->numSizes; i++) {
+      if (font->sizes[i].size == size) {
+         p = font->sizes + i;
+         break;
+      }
+   }
+
+   return p;
+}
+
+f32 drawChar(textured_vertex_buffer* b, screen_font_size* s, char c, f32 X, f32 Y)
+{
+   int entry = (int)(c - s->firstChar);
+   screen_font_entry* e =  &s->entries[entry];
+
+   f32 W = (f32)e->w;
+   f32 H = (f32)e->h;
+   f32 u1 = e->u1;
+   f32 v1 = e->v1;
+
+   f32 u2 = e->u2;
+   f32 v2 = e->v2;
+
+   addTextured2DQuad(b, vec2(X, Y), vec2(X+W, Y+H), vec2(u1, v1), vec2(u2, v2));
+
+   return W;
+}
+
+f32 drawString(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, const char* text)
+{
+   f32 X = XBegin;
+   for (const char* c = text; *c; c++) {
+      if (*c == ' ') {
+         X += 10;
+      } else {
+         X += drawChar(b, p, *c, X, Y);
+      }
+   }
+
+   return X - XBegin;
+}
+
+f32 drawInt(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, int number, unsigned int padding = 1)
+{
+   f32 X = XBegin;
+
+   char buffer[32] = "0000000000";
+   if (padding > 10) {
+      padding = 10;
+   }
+
+   buffer[padding] = 0;
+
+   if (number < 0) {
+      X += drawChar(b, p, '-', X, Y);
+      number = -number;
+   }
+
+   unsigned int idx = 0;
+   while (number > 0) {
+      buffer[idx++] = (number % 10) + '0';
+      number /= 10;
+   }
+
+   padding = padding < idx ? idx : padding;
+
+   for (unsigned int i = 0; i < padding; i++) {
+      X += drawChar(b, p, buffer[padding - i - 1], X, Y);
+   }
+
+   return X - XBegin;
+}
+
+f32 drawFloat(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, f32 number, int precision)
+{
+   f32 X = XBegin;
+   int whole = (int)floorf(number);
+   int fraction = (int)roundf((number - whole) * powf(10.0f, (f32)precision));
+
+   X += drawInt(b, p, X, Y, whole);
+   X += drawString(b, p, X, Y, ".");
+   X += drawInt(b, p, X, Y, fraction, precision);
+
+   return X - XBegin;
+}
+
+void free_screen_font(screen_font* f)
+{
+   for (int s = 0; s < f->numSizes; s++) {
+      free(f->sizes[s].entries);
+   }
+   free(f->sizes);
+   free(f->textureData);
+   free(f);
+}
 
 GLuint compileShader(const char* vertexName, const char* fragmentName)
 {
@@ -345,12 +676,16 @@ GLuint compileShader(const char* vertexName, const char* fragmentName)
    return shaderProgram;
 }
 
-GLuint createTexture(const char* resource)
+bool bindUniform(GLuint program, const char* location, const mat4& matrix)
 {
-   u32 size = 0;
-   u8 *resourceData = Platform.slurp(resource, &size);
-   int width, height, channels;
-   stbi_uc* imageData = stbi_load_from_memory((stbi_uc const*)resourceData, (int)size, &width, &height, &channels, 0);
+   int p = glGetUniformLocation(program, location);
+   glUseProgram(program);
+   glUniformMatrix4fv(p, 1, GL_FALSE, matrix.m);
+   return true;
+}
+
+GLuint createTexture(u8* imageData, int width, int height, int channels, GLenum type = 0)
+{
    unsigned int texture;
 
    glGenTextures(1, &texture);
@@ -361,13 +696,29 @@ GLuint createTexture(const char* resource)
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-   GLenum type = GL_RGBA;
+   GLenum format = GL_RGBA;
    if (channels == 3) {
-      type = GL_RGB;
+      format = GL_RGB;
    }
 
-   glTexImage2D(GL_TEXTURE_2D, 0, type, width, height, 0, type, GL_UNSIGNED_BYTE, imageData);
+   if (!type) {
+      type = format;
+   }
+
+   glTexImage2D(GL_TEXTURE_2D, 0, type, width, height, 0, format, GL_UNSIGNED_BYTE, imageData);
    glGenerateMipmap(GL_TEXTURE_2D);
+
+   return texture;
+}
+
+GLuint createTexture(const char* resource)
+{
+   u32 size = 0;
+   u8 *resourceData = Platform.slurp(resource, &size);
+   int width, height, channels;
+   stbi_uc* imageData = stbi_load_from_memory((stbi_uc const*)resourceData, (int)size, &width, &height, &channels, 0);
+
+   unsigned int texture = createTexture(imageData, width, height, channels);
 
    stbi_image_free(imageData);
    free(resourceData);
@@ -437,17 +788,31 @@ bool InitializeRenderer(renderer* r)
 
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0);
 	
+#if 0
    if (r->VBO) {
       glDeleteBuffers(1, &r->VBO);
       glDeleteBuffers(1, &r->EBO);
       glDeleteVertexArrays(1, &r->VAO);
       glDeleteProgram(r->shaderProgram);
    }
+#endif
 
    if (r->texture) {
       glDeleteTextures(1, &r->texture);
    }
 
+   if (r->TheFont) {
+      free_screen_font(r->TheFont);
+      r->TheFont = 0;
+      glDeleteTextures(1, &r->FontTexture);
+
+      glDeleteProgram(r->fontProgram);
+      freeTexturedVertexBuffer(r->FontVertexBuffer);
+   }
+
+   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+#if 0
    float vertices[] = {
       // positions          // colors          // texture
        0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,  1.0f, 1.0f,   // top right
@@ -483,14 +848,20 @@ bool InitializeRenderer(renderer* r)
    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6*sizeof(float)));
    glEnableVertexAttribArray(2);
 
-	glClear(GL_COLOR_BUFFER_BIT);
-   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
    r->VBO = VBO;
    r->VAO = VAO;
    r->EBO = EBO;
    r->texture = createTexture("container.jpg");
    r->shaderProgram = compileShader("texture_tutorial.vert", "texture_tutorial.frag");
+#endif
+
+   r->TheFont = createFont(512, 512, "Droid Sans Mono Slashed");
+   r->FontTexture = createTexture((u8*)r->TheFont->textureData, 512, 512, 4, GL_RGB);
+   r->fontProgram = compileShader("font.vert", "font.frag");
+   r->FontVertexBuffer = createTexturedVertexBuffer(256);
+
+   r->uiProj = Ortho2D((f32)r->viewport.width, (f32)r->viewport.height);
+   bindUniform(r->fontProgram, "proj", r->uiProj);
 
    return true;
 }
@@ -500,23 +871,43 @@ bool ResizeWindow(renderer* r, int width, int height)
    r->viewport.width = width;
    r->viewport.height = height;
 
+   r->uiProj = Ortho2D((f32)r->viewport.width, (f32)r->viewport.height);
+   bindUniform(r->fontProgram, "proj", r->uiProj);
+
    glViewport(0, 0, width, height);
 
    return true;
 }
 
-void RenderFrame(renderer* r)
+void RenderFrame(renderer* r, game_state*)
 {
    glFinish();
 
    glClear(GL_COLOR_BUFFER_BIT);
 
+#if 0
    glUseProgram(r->shaderProgram);
-   glBindTexture(GL_TEXTURE_2D, r->texture);
+   glBindTexture(GL_TEXTURE_2D, r->FontTexture);
    glBindVertexArray(r->VAO);
 
   // glDrawArrays(GL_TRIANGLES, 0, 3);
    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+#endif
+
+   textured_vertex_buffer* t = r->FontVertexBuffer;
+   screen_font_size* f = findFontSize(r->TheFont, 36);
+
+   f32 h = (f32)r->viewport.height;
+   f32 y = h - f->lineHeight;
+   f32 x = 5;
+
+   x += 3 + drawString(t, f, x, y, "Hello World: ");
+   x += 3 + drawInt(t, f, x, y, 123124123);
+   drawFloat(t, f, x, y, 43.2341f, 4);
+
+   glUseProgram(r->fontProgram);
+   glBindTexture(GL_TEXTURE_2D, r->FontTexture);
+   drawTexturedVertexBuffer(r->FontVertexBuffer);
 
    glBindVertexArray(0);
 }

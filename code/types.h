@@ -17,8 +17,31 @@ typedef double f64;
 
 #define PI 3.1415927f
 
+#pragma pack(push, 1)
+union vec2
+{
+   vec2() : x(0), y(0) {}
+   vec2(f32 X, f32 Y) : x(X), y(Y) {}
+
+   struct {
+      f32 x;
+      f32 y;
+   };
+   struct {
+      f32 s;
+      f32 t;
+   };
+   f32 v[2];
+};
+
 union vec3
 {
+   vec3() : x(0), y(0), z(0) {}
+   vec3(f32 X, f32 Y) : x(X), y(Y), z(0) {}
+   vec3(f32 X, f32 Y, f32 Z) :x(X), y(Y), z(Z) {}
+   vec3(vec2& v) : x(v.x), y(v.y), z(0) {}
+   vec3(vec2& v, f32 Z) : x(v.x), y(v.y), z(Z) {}
+
    struct {
       f32 x;
       f32 y;
@@ -26,6 +49,30 @@ union vec3
    };
    f32 v[3];
 };
+
+union vec4
+{
+   struct {
+      f32 x;
+      f32 y;
+      f32 z;
+      f32 w;
+   };
+   struct {
+      f32 r;
+      f32 g;
+      f32 b;
+      f32 a;
+   };
+   f32 v[4];
+};
+
+struct mat4
+{
+   f32 m[16];
+};
+
+#pragma pack(pop)
 
 float magnitude(vec3 v)
 {
@@ -63,23 +110,6 @@ vec3 operator*(vec3 a, float b)
    return r;
 }
 
-union vec4
-{
-   struct {
-      f32 x;
-      f32 y;
-      f32 z;
-      f32 w;
-   };
-   struct {
-      f32 r;
-      f32 g;
-      f32 b;
-      f32 a;
-   };
-   f32 v[4];
-};
-
 struct screen_font_entry
 {
    char codePoint;
@@ -94,13 +124,14 @@ struct screen_font_entry
 struct screen_font_size
 {
    s32 size;
+   int firstChar;
+   int lastChar;
+   int lineHeight;
    screen_font_entry* entries;
 };
 
 struct screen_font {
    char* fontName;
-   int firstChar;
-   int lastChar;
    int numSizes;
    s8* textureData;
    screen_font_size* sizes;
