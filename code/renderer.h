@@ -31,11 +31,6 @@ typedef struct renderer
       int height;
    } viewport;
 
-   unsigned int VBO;
-   unsigned int VAO;
-   unsigned int EBO;
-   unsigned int shaderProgram;
-   unsigned int texture;
    screen_font* TheFont;
    unsigned int fontProgram;
    unsigned int FontTexture;

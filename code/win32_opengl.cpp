@@ -788,19 +788,6 @@ bool InitializeRenderer(renderer* r)
 
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0);
 	
-#if 0
-   if (r->VBO) {
-      glDeleteBuffers(1, &r->VBO);
-      glDeleteBuffers(1, &r->EBO);
-      glDeleteVertexArrays(1, &r->VAO);
-      glDeleteProgram(r->shaderProgram);
-   }
-#endif
-
-   if (r->texture) {
-      glDeleteTextures(1, &r->texture);
-   }
-
    if (r->TheFont) {
       free_screen_font(r->TheFont);
       r->TheFont = 0;
@@ -812,48 +799,6 @@ bool InitializeRenderer(renderer* r)
 
    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-#if 0
-   float vertices[] = {
-      // positions          // colors          // texture
-       0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,  1.0f, 1.0f,   // top right
-       0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,  1.0f, 0.0f,   // bottom right
-      -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,  0.0f, 0.0f,   // bottom left
-      -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,  0.0f, 1.0f
-   };
-   unsigned int indices[] = {
-      0, 1, 3, 1, 2, 3
-   };
-
-   unsigned int VBO;
-   unsigned int VAO;
-   unsigned int EBO;
-   // buffer shit
-   glGenBuffers(1, &VBO);
-   glGenBuffers(1, &EBO);
-   glGenVertexArrays(1, &VAO);
-
-   // this guy holds info on all bound buffers while it is bound
-   glBindVertexArray(VAO);
-
-   glBindBuffer(GL_ARRAY_BUFFER, VBO);
-   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), NULL);
-   glEnableVertexAttribArray(0);
-   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3*sizeof(float)));
-   glEnableVertexAttribArray(1);
-   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6*sizeof(float)));
-   glEnableVertexAttribArray(2);
-
-   r->VBO = VBO;
-   r->VAO = VAO;
-   r->EBO = EBO;
-   r->texture = createTexture("container.jpg");
-   r->shaderProgram = compileShader("texture_tutorial.vert", "texture_tutorial.frag");
-#endif
 
    r->TheFont = createFont(512, 512, "Droid Sans Mono Slashed");
    r->FontTexture = createTexture((u8*)r->TheFont->textureData, 512, 512, 4, GL_RGB);
@@ -884,15 +829,6 @@ void RenderFrame(renderer* r, game_state*)
    glFinish();
 
    glClear(GL_COLOR_BUFFER_BIT);
-
-#if 0
-   glUseProgram(r->shaderProgram);
-   glBindTexture(GL_TEXTURE_2D, r->FontTexture);
-   glBindVertexArray(r->VAO);
-
-  // glDrawArrays(GL_TRIANGLES, 0, 3);
-   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-#endif
 
    textured_vertex_buffer* t = r->FontVertexBuffer;
    screen_font_size* f = findFontSize(r->TheFont, 36);
