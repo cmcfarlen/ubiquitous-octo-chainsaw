@@ -44,9 +44,10 @@ u8* slurp(const char* resource, u32* size)
    *size = fs.LowPart;
    u32 toRead = *size;
    u32 bc = 0;
-   u8* data = (u8*)malloc(*size);
+   u8* data = (u8*)malloc(*size + 1);
 
    ReadFile(h, data, toRead, &bc, 0);
+   data[*size] = 0;
 
    assert(toRead == bc);
 

@@ -643,6 +643,7 @@ GLuint compileShader(const char* vertexName, const char* fragmentName)
    if (!success) {
       glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
       Platform.log("Failed to compile vertex shader: %s\n", infoLog);
+      Platform.log("source: %s\n", vertexShaderSource);
    }
 
    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -654,6 +655,7 @@ GLuint compileShader(const char* vertexName, const char* fragmentName)
    if (!success) {
       glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
       Platform.log("Failed to compile fragment shader: %s\n", infoLog);
+      Platform.log("source: %s\n", fragmentShaderSource);
    }
 
    shaderProgram = glCreateProgram();
@@ -839,7 +841,9 @@ void RenderFrame(renderer* r, game_state*)
 
    x += 3 + drawString(t, f, x, y, "Hello World: ");
    x += 3 + drawInt(t, f, x, y, 123124123);
+
    drawFloat(t, f, x, y, 43.2341f, 4);
+   //drawFloat(t, f, x, y-f->lineHeight, 43.2341f, 4);
 
    glUseProgram(r->fontProgram);
    glBindTexture(GL_TEXTURE_2D, r->FontTexture);
