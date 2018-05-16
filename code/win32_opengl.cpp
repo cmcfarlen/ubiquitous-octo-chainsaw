@@ -16,6 +16,8 @@ GLAPI void APIENTRY glClearColor (GLfloat red, GLfloat green, GLfloat blue, GLfl
 GLAPI void APIENTRY glClear (GLbitfield mask);
 GLAPI void APIENTRY glPolygonMode (GLint, GLint);
 GLAPI void APIENTRY glFinish (void);
+GLAPI void APIENTRY glEnable (GLenum);
+GLAPI void APIENTRY glDisable (GLenum);
 GLAPI unsigned char* APIENTRY glGetString (GLint);
 GLAPI void APIENTRY glViewport (GLint x, GLint y, GLsizei width, GLsizei height);
 GLAPI void APIENTRY glGenTextures (GLsizei n, GLuint* textures);
@@ -24,6 +26,10 @@ GLAPI void APIENTRY glBindTexture (GLenum target, GLuint texture);
 GLAPI void APIENTRY glTexParameteri(GLenum target, GLenum name, GLint param);
 GLAPI void APIENTRY glTexParameterf(GLenum target, GLenum name, GLfloat param);
 GLAPI void APIENTRY glTexImage2D (GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void *pixels);
+GLAPI void APIENTRY glBlendFunc(	GLenum  	sfactor, GLenum  	dfactor);
+GLAPI GLenum APIENTRY glGetError(void);
+GLAPI void APIENTRY glScissor (GLint, GLint, GLint, GLint);
+
 }
 
 // loaded functions
@@ -56,6 +62,7 @@ PFNGLDELETEPROGRAMPROC glDeleteProgram = 0;
 PFNGLGENERATEMIPMAPPROC glGenerateMipmap = 0;
 PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation = 0;
 PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv = 0;
+PFNGLUNIFORM4FVPROC glUniform4fv = 0;
 
 
 // wgl defines
@@ -285,12 +292,20 @@ void LoadGL()
    glGenerateMipmap = (PFNGLGENERATEMIPMAPPROC)wglGetProcAddress("glGenerateMipmap");
    glGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC)wglGetProcAddress("glGetUniformLocation");
    glUniformMatrix4fv = (PFNGLUNIFORMMATRIX4FVPROC)wglGetProcAddress("glUniformMatrix4fv");
+   glUniform4fv = (PFNGLUNIFORM4FVPROC)wglGetProcAddress("glUniform4fv");
 }
 
 #include "win32_opengl.h"
 #include "renderer.h"
 
 // renderer implementation
+//
+
+void assertGL()
+{
+   GLenum err = glGetError();
+   assert(err == GL_NO_ERROR);
+}
 
 platform_api Platform;
 
@@ -316,6 +331,131 @@ mat4 Ortho2D(f32 w, f32 h, f32 n = -1, f32 f = 1)
    r.m[3] =      0; r.m[7] =      0; r.m[11] =        0; r.m[15] =            1;
 
    return r;
+}
+
+mat4 PlotView(f32 DomainFrom, f32 DomainTo, f32 RangeFrom, f32 RangeTo, f32 X, f32 Y, f32 W, f32 H)
+{
+   mat4 r;
+   f32 xs = W / (DomainTo - DomainFrom);
+   f32 ys = H / (RangeTo - RangeFrom);
+
+   r.m[0] = xs; r.m[4] =  0; r.m[ 8] = 0; r.m[12] = X - (xs * DomainFrom);
+   r.m[1] =  0; r.m[5] = ys; r.m[ 9] = 0; r.m[13] = Y - (ys * RangeFrom);
+   r.m[2] =  0; r.m[6] =  0; r.m[10] = 1; r.m[14] = 0;
+   r.m[3] =  0; r.m[7] =  0; r.m[11] = 0; r.m[15] = 1;
+
+   return r;
+}
+
+colored_vertex_buffer* createColoredVertexBuffer(u32 max)
+{
+   colored_vertex_buffer* result = (colored_vertex_buffer*)malloc(sizeof(colored_vertex_buffer));
+   colored_vertex* vertices = (colored_vertex*)malloc(max * sizeof(colored_vertex));
+   u32* indices = (u32*)malloc(max * 2 * sizeof(u32));
+
+   result->max = max;
+   result->vcnt = 0;
+   result->icnt = 0;
+   result->vertices = vertices;
+   result->indices = indices;
+
+   glGenBuffers(2, result->buffers);
+   glGenVertexArrays(1, &result->vao);
+
+   glBindVertexArray(result->vao);
+
+   glBindBuffer(GL_ARRAY_BUFFER, result->buffers[0]);
+   glBufferData(GL_ARRAY_BUFFER, max * sizeof(colored_vertex), 0, GL_STREAM_DRAW);
+   assertGL();
+
+   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, result->buffers[1]);
+   glBufferData(GL_ELEMENT_ARRAY_BUFFER, max * 2 * sizeof(u32), 0, GL_STREAM_DRAW);
+
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), NULL);
+   assertGL();
+   glEnableVertexAttribArray(0);
+   assertGL();
+   glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), (void*)(3*sizeof(f32)));
+   assertGL();
+   glEnableVertexAttribArray(1);
+   assertGL();
+
+   glBindVertexArray(0);
+
+   return result;
+}
+
+void addColored2DQuad(colored_vertex_buffer* b, vec2 pll, vec2 pur, vec4 color)
+{
+   u32 v = b->vcnt;
+   u32 i = b->icnt;
+
+   b->vertices[v+0].P = vec3(pur); // top right
+   b->vertices[v+0].C = color;
+   b->vertices[v+1].P = vec3(pur.x, pll.y); // bottom right
+   b->vertices[v+1].C = color;
+   b->vertices[v+2].P = vec3(pll); // bottom left
+   b->vertices[v+2].C = color;
+   b->vertices[v+3].P = vec3(pll.x, pur.y); // top left
+   b->vertices[v+3].C = color;
+
+   b->indices[i+0] = v + 0;
+   b->indices[i+1] = v + 1;
+   b->indices[i+2] = v + 3;
+   b->indices[i+3] = v + 1;
+   b->indices[i+4] = v + 2;
+   b->indices[i+5] = v + 3;
+
+
+   b->vcnt += 4;
+   b->icnt += 6;
+}
+
+void addColoredVertex(colored_vertex_buffer* b, vec3 p, vec4 c)
+{
+   u32 i = b->vcnt++;
+   b->vertices[i].P = p;
+   b->vertices[i].C = c;
+}
+
+void freeColoredVertexBuffer(colored_vertex_buffer* tvb)
+{
+   glDeleteBuffers(2, tvb->buffers);
+   glDeleteVertexArrays(1, &tvb->vao);
+   free(tvb->indices);
+   free(tvb->vertices);
+   free(tvb);
+}
+
+void drawColoredVertexTriangles(colored_vertex_buffer* tvb)
+{
+   glBindVertexArray(tvb->vao);
+
+   glBindBuffer(GL_ARRAY_BUFFER, tvb->buffers[0]);
+   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(colored_vertex), tvb->vertices);
+
+   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tvb->buffers[1]);
+   glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, tvb->icnt * sizeof(u32), tvb->indices);
+
+   glDrawElements(GL_TRIANGLES, tvb->icnt, GL_UNSIGNED_INT, 0);
+
+   tvb->vcnt = 0;
+   tvb->icnt = 0;
+}
+
+void drawColoredVertexLineStrip(colored_vertex_buffer* tvb)
+{
+   glBindVertexArray(tvb->vao);
+
+   glBindBuffer(GL_ARRAY_BUFFER, tvb->buffers[0]);
+   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(colored_vertex), tvb->vertices);
+   assertGL();
+
+   glDrawArrays(GL_LINE_STRIP, 0, tvb->vcnt);
+   assertGL();
+
+   tvb->vcnt = 0;
+   tvb->icnt = 0;
 }
 
 textured_vertex_buffer* createTexturedVertexBuffer(u32 max)
@@ -517,7 +657,20 @@ screen_font* createFont(int Width, int Height, const char* fontName)
    DeleteObject(bitmap);
    DeleteObject(dc);
 
-   result->textureData = imageData;
+   u8* lumData = (u8*)malloc(Width*Height);
+   u32* pixels = (u32*)imageData;
+
+   for (int i = 0; i < Width*Height; i++) {
+      if (pixels[i]) {
+         lumData[i] = 0xff;
+      } else {
+         lumData[i] = 0x00;
+      }
+   }
+
+   free(imageData);
+
+   result->textureData = (s8*)lumData;
    return result;
 }
 
@@ -678,11 +831,46 @@ GLuint compileShader(const char* vertexName, const char* fragmentName)
    return shaderProgram;
 }
 
+const char* addExtension(char* buff, int max, const char* name, const char* ext)
+{
+   char* s = buff;
+   --max;
+   while (max-- > 0 && *name) {
+      *buff++ = *name++;
+   }
+   if (max-- > 0) {
+      *buff++ = '.';
+   }
+   while (max-- > 0 && *ext) {
+      *buff++ = *ext++;
+   }
+   *buff = 0;
+
+   return s;
+}
+
+GLuint compileShader(const char* name)
+{
+   char vertName[256];
+   char fragName[256];
+
+   return compileShader(addExtension(vertName, sizeof(vertName), name, "vert"),
+                        addExtension(fragName, sizeof(fragName), name, "frag"));
+}
+
 bool bindUniform(GLuint program, const char* location, const mat4& matrix)
 {
    int p = glGetUniformLocation(program, location);
    glUseProgram(program);
    glUniformMatrix4fv(p, 1, GL_FALSE, matrix.m);
+   return true;
+}
+
+bool bindUniform(GLuint program, const char* location, const vec4& v)
+{
+   int p = glGetUniformLocation(program, location);
+   glUseProgram(program);
+   glUniform4fv(p, 1, v.v);
    return true;
 }
 
@@ -701,6 +889,8 @@ GLuint createTexture(u8* imageData, int width, int height, int channels, GLenum 
    GLenum format = GL_RGBA;
    if (channels == 3) {
       format = GL_RGB;
+   } else if (channels == 1) {
+      format = GL_RED;
    }
 
    if (!type) {
@@ -796,19 +986,29 @@ bool InitializeRenderer(renderer* r)
       glDeleteTextures(1, &r->FontTexture);
 
       glDeleteProgram(r->fontProgram);
+      glDeleteProgram(r->ColorProgram);
       freeTexturedVertexBuffer(r->FontVertexBuffer);
+      freeColoredVertexBuffer(r->Colors);
    }
 
    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
    r->TheFont = createFont(512, 512, "Droid Sans Mono Slashed");
-   r->FontTexture = createTexture((u8*)r->TheFont->textureData, 512, 512, 4, GL_RGB);
+   r->FontTexture = createTexture((u8*)r->TheFont->textureData, 512, 512, 1, GL_RED);
    r->fontProgram = compileShader("font.vert", "font.frag");
    r->FontVertexBuffer = createTexturedVertexBuffer(256);
 
+   r->ColorProgram = compileShader("solid");
+   r->Colors = createColoredVertexBuffer(256);
+
    r->uiProj = Ortho2D((f32)r->viewport.width, (f32)r->viewport.height);
    bindUniform(r->fontProgram, "proj", r->uiProj);
+   bindUniform(r->fontProgram, "color", vec4(1, 1, 1, 1));
+
+   bindUniform(r->ColorProgram, "proj", r->uiProj);
+   //bindUniform(r->ColorProgram, "view", IdentityMatrix());
+   bindUniform(r->ColorProgram, "view", PlotView(-10, 10, -1.5, 1.5, 500, 500, 200, 200));
 
    return true;
 }
@@ -820,6 +1020,7 @@ bool ResizeWindow(renderer* r, int width, int height)
 
    r->uiProj = Ortho2D((f32)r->viewport.width, (f32)r->viewport.height);
    bindUniform(r->fontProgram, "proj", r->uiProj);
+   bindUniform(r->ColorProgram, "proj", r->uiProj);
 
    glViewport(0, 0, width, height);
 
@@ -845,9 +1046,28 @@ void RenderFrame(renderer* r, game_state*)
    drawFloat(t, f, x, y, 43.2341f, 4);
    //drawFloat(t, f, x, y-f->lineHeight, 43.2341f, 4);
 
+   glEnable(GL_BLEND);
+   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
    glUseProgram(r->fontProgram);
    glBindTexture(GL_TEXTURE_2D, r->FontTexture);
    drawTexturedVertexBuffer(r->FontVertexBuffer);
+
+   glUseProgram(r->ColorProgram);
+
+   glEnable(GL_SCISSOR_TEST);
+   glScissor(500, 500, 200, 200);
+
+   addColored2DQuad(r->Colors, vec2(-10, -1.5), vec2(10, 1.5), vec4(0.1f, 0.1f, 0.1f, 1));
+   drawColoredVertexTriangles(r->Colors);
+
+   vec4 plotColor = vec4(1, 0, 0.57, 1);
+   for (f32 d = -10; d < 10.5; d += 0.25) {
+      addColoredVertex(r->Colors, vec3(d, sinf(d), 0), plotColor);
+   }
+   drawColoredVertexLineStrip(r->Colors);
+
+   glDisable(GL_SCISSOR_TEST);
 
    glBindVertexArray(0);
 }

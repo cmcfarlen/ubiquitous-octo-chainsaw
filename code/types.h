@@ -52,6 +52,7 @@ union vec3
 
 union vec4
 {
+   vec4(f32 R, f32 G, f32 B, f32 A) : r(R), g(G), b(B), a(A) {}
    struct {
       f32 x;
       f32 y;
@@ -72,7 +73,26 @@ struct mat4
    f32 m[16];
 };
 
+struct rect
+{
+   rect(f32 x1, f32 y1, f32 x2, f32 y2) : ll(x1, y1), ur(x2, y2) {}
+   rect(vec2 LL, vec2 UR) : ll(LL), ur(UR) {}
+
+   vec2 ll;
+   vec2 ur;
+};
+
 #pragma pack(pop)
+
+f32 width(const rect& r)
+{
+   return r.ur.x - r.ll.x;
+}
+
+f32 height(const rect& r)
+{
+   return r.ur.y - r.ll.y;
+}
 
 float magnitude(vec3 v)
 {
