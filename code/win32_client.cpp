@@ -56,6 +56,34 @@ u8* slurp(const char* resource, u32* size)
    return data;
 }
 
+u32 pageSize(void)
+{
+   SYSTEM_INFO info = {};
+   GetSystemInfo(&info);
+   return info.dwPageSize;
+}
+
+u32 processorCount(void)
+{
+   SYSTEM_INFO info = {};
+   GetSystemInfo(&info);
+   return info.dwNumberOfProcessors;
+}
+
+void* allocateMemory(size_t bytes)
+{
+   // TODO(dad): need to check to see if we are wasting a lot of memory
+   void* p = VirtualAlloc(0, bytes, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+   assert(GetLastError() == 0);
+   return p;
+}
+
+void freeMemory(void* p)
+{
+   VirtualFree(p, 0, MEM_RELEASE);
+   assert(GetLastError() == 0);
+}
+
 unsigned long long getModifyTime(const char* f)
 {
 	FILETIME mtime;
@@ -130,7 +158,7 @@ bool loadDll(dll_watch* watch)
 Win32SetupRenderContext_t Win32SetupRenderContext = 0;
 Win32SelectRenderContext_t Win32SelectRenderContext = 0;
 
-platform_api Platform = { log, slurp };
+platform_api Platform = { log, slurp, allocateMemory, pageSize, processorCount };
 
 // global renderer
 static renderer_api RenderAPI = {};

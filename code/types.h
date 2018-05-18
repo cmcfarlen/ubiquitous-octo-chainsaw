@@ -2,6 +2,7 @@
 #define _TYPES_H
 
 #include <math.h>
+#include <stdint.h>
 
 typedef unsigned long long u64;
 typedef unsigned long u32;
