@@ -72,10 +72,6 @@ typedef struct
         
         [_texture replaceRegion:region mipmapLevel:0 withBytes:pixelData bytesPerRow:bytesPerRow];
         
-        
-        
-        
-        
         id<MTLLibrary> defaultLibrary = [_device newDefaultLibrary];
         
         id<MTLFunction> uiVertexFunction = [defaultLibrary newFunctionWithName:@"uiVertexShader"];
@@ -95,16 +91,13 @@ typedef struct
             return nil;
         }
       
-        
-        
-#if 0
         NSData* vertexData = [Renderer generateVertexData];
         
         _vertexBuffer = [_device newBufferWithLength:vertexData.length options:MTLResourceStorageModeShared];
         
         memcpy(_vertexBuffer.contents, vertexData.bytes, vertexData.length);
         _numVertices = vertexData.length / sizeof(UIVertex);
-#endif
+
         _commandQueue = [_device newCommandQueue];
     }
 
@@ -141,6 +134,8 @@ typedef struct
                                length:sizeof(_viewport)
                               atIndex:UIVertexInputViewportSize];
         
+        [renderEncoder setFragmentTexture:_texture atIndex:UITextureIndexBaseColor];
+        
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:_numVertices];
         
         [renderEncoder endEncoding];
@@ -161,13 +156,13 @@ typedef struct
     const UIVertex quadVertices[] =
     {
         // Pixel positions, RGBA colors
-        { { -20,   20 },    { 1, 0, 0, 1 } },
-        { {  20,   20 },    { 0, 0, 1, 1 } },
-        { { -20,  -20 },    { 0, 1, 0, 1 } },
+        { { -20,   20 },    { 1, 0, 0, 1 }, { 0.0f, 1.0f } },
+        { {  20,   20 },    { 0, 0, 1, 1 }, { 1.0f, 1.0f }  },
+        { { -20,  -20 },    { 0, 1, 0, 1 }, { 0.0f, 0.0f }  },
         
-        { {  20,  -20 },    { 1, 0, 0, 1 } },
-        { { -20,  -20 },    { 0, 1, 0, 1 } },
-        { {  20,   20 },    { 0, 0, 1, 1 } },
+        { {  20,  -20 },    { 1, 0, 0, 1 }, { 1.0f, 0.0f }  },
+        { { -20,  -20 },    { 0, 1, 0, 1 }, { 0.0f, 0.0f }  },
+        { {  20,   20 },    { 0, 0, 1, 1 }, { 1.0f, 1.0f }  },
     };
     const NSUInteger NUM_COLUMNS = 25;
     const NSUInteger NUM_ROWS = 15;

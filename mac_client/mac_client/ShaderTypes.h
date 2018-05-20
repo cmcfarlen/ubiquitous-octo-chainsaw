@@ -27,10 +27,16 @@ typedef enum UIVertexInputIndex
     UIVertexInputViewportSize = 1
 } UIVertexInputIndex;
 
+typedef enum UITextureIndex
+{
+    UITextureIndexBaseColor = 0,
+} UITextureIndex;
+
 typedef struct
 {
     vector_float2 position;
     vector_float4 color;
+    vector_float2 textureCoordinate;
 } UIVertex;
 
 typedef NS_ENUM(NSInteger, BufferIndex)

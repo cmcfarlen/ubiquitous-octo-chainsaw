@@ -58,6 +58,7 @@ typedef struct
 {
     float4 clipSpacePosition [[position]];
     float4 color;
+    float2 textureCoordinate;
 } UIRasterData;
 
 vertex UIRasterData
@@ -76,13 +77,18 @@ uiVertexShader(uint vertexID [[vertex_id]],
     out.clipSpacePosition.xy = pixelSpacePosition / (viewportSize / 2.0);
     
     out.color = vertices[vertexID].color;
+    out.textureCoordinate = vertices[vertexID].textureCoordinate;
     
     return out;
 }
 
 fragment float4
-uiFragmentShader(UIRasterData in [[stage_in]])
+uiFragmentShader(UIRasterData in [[stage_in]],
+                 texture2d<half> colorTexture [[ texture(UITextureIndexBaseColor)]])
 {
-    return in.color;
+    constexpr sampler textureSampler (mag_filter::linear, min_filter::linear);
+    
+    const half4 colorSample = colorTexture.sample(textureSampler, in.textureCoordinate);
+    return float4(colorSample);
 }
 
