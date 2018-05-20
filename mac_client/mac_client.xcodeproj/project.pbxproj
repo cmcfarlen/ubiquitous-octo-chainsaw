@@ -1,0 +1,341 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 48;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		C438B00520B1F6C500EFE119 /* MacPlatform.mm in Sources */ = {isa = PBXBuildFile; fileRef = C438B00420B1F6C500EFE119 /* MacPlatform.mm */; };
+		C4B6BB9920B1DD5800767D71 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = C4B6BB9820B1DD5800767D71 /* AppDelegate.m */; };
+		C4B6BB9C20B1DD5800767D71 /* Renderer.m in Sources */ = {isa = PBXBuildFile; fileRef = C4B6BB9B20B1DD5800767D71 /* Renderer.m */; };
+		C4B6BB9F20B1DD5800767D71 /* GameViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = C4B6BB9E20B1DD5800767D71 /* GameViewController.m */; };
+		C4B6BBA120B1DD5800767D71 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = C4B6BBA020B1DD5800767D71 /* Shaders.metal */; };
+		C4B6BBA720B1DD5800767D71 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C4B6BBA520B1DD5800767D71 /* Main.storyboard */; };
+		C4B6BBAA20B1DD5800767D71 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = C4B6BBA920B1DD5800767D71 /* main.m */; };
+		C4B6BBB520B1F54400767D71 /* Image.tga in Resources */ = {isa = PBXBuildFile; fileRef = C4B6BBB420B1F54400767D71 /* Image.tga */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		C438B00420B1F6C500EFE119 /* MacPlatform.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MacPlatform.mm; sourceTree = "<group>"; };
+		C438B00620B1F71800EFE119 /* platform.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = platform.h; path = ../../code/platform.h; sourceTree = "<group>"; };
+		C438B00720B1F75100EFE119 /* stb_image.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stb_image.h; path = ../../code/stb_image.h; sourceTree = "<group>"; };
+		C4B6BB9420B1DD5800767D71 /* mac_client.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mac_client.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C4B6BB9720B1DD5800767D71 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		C4B6BB9820B1DD5800767D71 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		C4B6BB9A20B1DD5800767D71 /* Renderer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Renderer.h; sourceTree = "<group>"; };
+		C4B6BB9B20B1DD5800767D71 /* Renderer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Renderer.m; sourceTree = "<group>"; };
+		C4B6BB9D20B1DD5800767D71 /* GameViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GameViewController.h; sourceTree = "<group>"; };
+		C4B6BB9E20B1DD5800767D71 /* GameViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GameViewController.m; sourceTree = "<group>"; };
+		C4B6BBA020B1DD5800767D71 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; };
+		C4B6BBA220B1DD5800767D71 /* ShaderTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ShaderTypes.h; sourceTree = "<group>"; };
+		C4B6BBA620B1DD5800767D71 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		C4B6BBA820B1DD5800767D71 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C4B6BBA920B1DD5800767D71 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		C4B6BBAB20B1DD5800767D71 /* mac_client.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = mac_client.entitlements; sourceTree = "<group>"; };
+		C4B6BBB420B1F54400767D71 /* Image.tga */ = {isa = PBXFileReference; lastKnownFileType = file; path = Image.tga; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C4B6BB9120B1DD5800767D71 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		C4B6BB8B20B1DD5800767D71 = {
+			isa = PBXGroup;
+			children = (
+				C4B6BB9620B1DD5800767D71 /* mac_client */,
+				C4B6BB9520B1DD5800767D71 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C4B6BB9520B1DD5800767D71 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C4B6BB9420B1DD5800767D71 /* mac_client.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C4B6BB9620B1DD5800767D71 /* mac_client */ = {
+			isa = PBXGroup;
+			children = (
+				C438B00720B1F75100EFE119 /* stb_image.h */,
+				C438B00620B1F71800EFE119 /* platform.h */,
+				C4B6BBB420B1F54400767D71 /* Image.tga */,
+				C4B6BB9720B1DD5800767D71 /* AppDelegate.h */,
+				C4B6BB9820B1DD5800767D71 /* AppDelegate.m */,
+				C4B6BB9A20B1DD5800767D71 /* Renderer.h */,
+				C4B6BB9B20B1DD5800767D71 /* Renderer.m */,
+				C4B6BB9D20B1DD5800767D71 /* GameViewController.h */,
+				C4B6BB9E20B1DD5800767D71 /* GameViewController.m */,
+				C4B6BBA020B1DD5800767D71 /* Shaders.metal */,
+				C4B6BBA220B1DD5800767D71 /* ShaderTypes.h */,
+				C4B6BBA520B1DD5800767D71 /* Main.storyboard */,
+				C4B6BBA820B1DD5800767D71 /* Info.plist */,
+				C4B6BBA920B1DD5800767D71 /* main.m */,
+				C4B6BBAB20B1DD5800767D71 /* mac_client.entitlements */,
+				C438B00420B1F6C500EFE119 /* MacPlatform.mm */,
+			);
+			path = mac_client;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C4B6BB9320B1DD5800767D71 /* mac_client */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C4B6BBAE20B1DD5800767D71 /* Build configuration list for PBXNativeTarget "mac_client" */;
+			buildPhases = (
+				C4B6BB9020B1DD5800767D71 /* Sources */,
+				C4B6BB9120B1DD5800767D71 /* Frameworks */,
+				C4B6BB9220B1DD5800767D71 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = mac_client;
+			productName = mac_client;
+			productReference = C4B6BB9420B1DD5800767D71 /* mac_client.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C4B6BB8C20B1DD5800767D71 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0920;
+				ORGANIZATIONNAME = "Chris McFarlen";
+				TargetAttributes = {
+					C4B6BB9320B1DD5800767D71 = {
+						CreatedOnToolsVersion = 9.2;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = C4B6BB8F20B1DD5800767D71 /* Build configuration list for PBXProject "mac_client" */;
+			compatibilityVersion = "Xcode 8.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = C4B6BB8B20B1DD5800767D71;
+			productRefGroup = C4B6BB9520B1DD5800767D71 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C4B6BB9320B1DD5800767D71 /* mac_client */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C4B6BB9220B1DD5800767D71 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C4B6BBB520B1F54400767D71 /* Image.tga in Resources */,
+				C4B6BBA720B1DD5800767D71 /* Main.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C4B6BB9020B1DD5800767D71 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C4B6BBAA20B1DD5800767D71 /* main.m in Sources */,
+				C4B6BBA120B1DD5800767D71 /* Shaders.metal in Sources */,
+				C4B6BB9C20B1DD5800767D71 /* Renderer.m in Sources */,
+				C4B6BB9F20B1DD5800767D71 /* GameViewController.m in Sources */,
+				C438B00520B1F6C500EFE119 /* MacPlatform.mm in Sources */,
+				C4B6BB9920B1DD5800767D71 /* AppDelegate.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		C4B6BBA520B1DD5800767D71 /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				C4B6BBA620B1DD5800767D71 /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		C4B6BBAC20B1DD5800767D71 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		C4B6BBAD20B1DD5800767D71 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		C4B6BBAF20B1DD5800767D71 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_WARN_COMMA = NO;
+				CODE_SIGN_ENTITLEMENTS = mac_client/mac_client.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				"HEADER_SEARCH_PATHS[arch=*]" = ../../code;
+				INFOPLIST_FILE = mac_client/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "mcfarlen.mac-client";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		C4B6BBB020B1DD5800767D71 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_WARN_COMMA = NO;
+				CODE_SIGN_ENTITLEMENTS = mac_client/mac_client.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = mac_client/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "mcfarlen.mac-client";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C4B6BB8F20B1DD5800767D71 /* Build configuration list for PBXProject "mac_client" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C4B6BBAC20B1DD5800767D71 /* Debug */,
+				C4B6BBAD20B1DD5800767D71 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C4B6BBAE20B1DD5800767D71 /* Build configuration list for PBXNativeTarget "mac_client" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C4B6BBAF20B1DD5800767D71 /* Debug */,
+				C4B6BBB020B1DD5800767D71 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = C4B6BB8C20B1DD5800767D71 /* Project object */;
+}
