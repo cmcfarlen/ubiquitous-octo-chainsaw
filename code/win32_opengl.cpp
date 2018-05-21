@@ -17,6 +17,7 @@ GLAPI void APIENTRY glClear (GLbitfield mask);
 GLAPI void APIENTRY glPolygonMode (GLint, GLint);
 GLAPI void APIENTRY glFinish (void);
 GLAPI void APIENTRY glEnable (GLenum);
+GLAPI void APIENTRY glFlush (void);
 GLAPI void APIENTRY glDisable (GLenum);
 GLAPI unsigned char* APIENTRY glGetString (GLint);
 GLAPI void APIENTRY glViewport (GLint x, GLint y, GLsizei width, GLsizei height);
@@ -146,6 +147,7 @@ wglChoosePixelFormatARB_t wglChoosePixelFormatARB = 0;
 wglCreateContextAttribsARB_t wglCreateContextAttribsARB = 0;
 
 #include "platform.h"
+#include "debug.h"
 
 // This will make a fake window class, window, fake dc and fake opengl context
 // in order to load the wgl extensions needed to create the real one.
@@ -308,6 +310,7 @@ void assertGL()
 }
 
 platform_api Platform;
+debug_system* GlobalDebug;
 
 mat4 IdentityMatrix()
 {
@@ -505,9 +508,11 @@ void drawTexturedVertexBuffer(textured_vertex_buffer* tvb)
    glBindVertexArray(tvb->vao);
 
    glBindBuffer(GL_ARRAY_BUFFER, tvb->buffers[0]);
+   glBufferData(GL_ARRAY_BUFFER, tvb->max * sizeof(textured_vertex), 0, GL_STREAM_DRAW);
    glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(textured_vertex), tvb->vertices);
 
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tvb->buffers[1]);
+   glBufferData(GL_ELEMENT_ARRAY_BUFFER, tvb->max * 2 * sizeof(u32), 0, GL_STREAM_DRAW);
    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, tvb->icnt * sizeof(u32), tvb->indices);
 
    glDrawElements(GL_TRIANGLES, tvb->icnt, GL_UNSIGNED_INT, 0);
@@ -518,6 +523,10 @@ void drawTexturedVertexBuffer(textured_vertex_buffer* tvb)
 
 void addTextured2DQuad(textured_vertex_buffer* b, vec2 pll, vec2 pur, vec2 tll, vec2 tur)
 {
+   if ((b->vcnt + 6) > b->max) {
+      drawTexturedVertexBuffer(b);
+   }
+
    u32 v = b->vcnt;
    u32 i = b->icnt;
 
@@ -997,7 +1006,7 @@ bool InitializeRenderer(renderer* r)
    r->TheFont = createFont(512, 512, "Droid Sans Mono Slashed");
    r->FontTexture = createTexture((u8*)r->TheFont->textureData, 512, 512, 1, GL_RED);
    r->fontProgram = compileShader("font.vert", "font.frag");
-   r->FontVertexBuffer = createTexturedVertexBuffer(256);
+   r->FontVertexBuffer = createTexturedVertexBuffer(512);
 
    r->ColorProgram = compileShader("solid");
    r->Colors = createColoredVertexBuffer(256);
@@ -1027,9 +1036,19 @@ bool ResizeWindow(renderer* r, int width, int height)
    return true;
 }
 
-void RenderFrame(renderer* r, game_state*)
+struct start_stack
 {
+   int id;
+   u64 mark;
+};
+
+void RenderFrame(renderer* r, game_state* state)
+{
+   GlobalDebug = state->DebugSystem;
+
    glFinish();
+
+   timed_function();
 
    glClear(GL_COLOR_BUFFER_BIT);
 
@@ -1040,19 +1059,47 @@ void RenderFrame(renderer* r, game_state*)
    f32 y = h - f->lineHeight;
    f32 x = 5;
 
-   x += 3 + drawString(t, f, x, y, "Hello World: ");
-   x += 3 + drawInt(t, f, x, y, 123124123);
-
-   drawFloat(t, f, x, y, 43.2341f, 4);
-   //drawFloat(t, f, x, y-f->lineHeight, 43.2341f, 4);
-
+   // draw ui text
    glEnable(GL_BLEND);
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
    glUseProgram(r->fontProgram);
    glBindTexture(GL_TEXTURE_2D, r->FontTexture);
+   x += 3 + drawString(t, f, x, y, "Hello World: ");
+   x += 3 + drawInt(t, f, x, y, 123124123);
+
+   drawFloat(t, f, x, y, 43.2341f, 4);
+   //drawFloat(t, f, x, y-f->lineHeight, 43.2341f, 4);
+   
+   y -= f->lineHeight;
+   x = 5;
+   start_stack debug_stack[512];
+   int stackp = 0;
+   debug_frame* df = GlobalDebug->frame + (1 - GlobalDebug->frame_index);
+   for (u32 i = 0; i < df->itemCount; i++) {
+      debug_item* item = df->items + i;
+      if (item->type == DEBUG_FUNCTION_ENTER) {
+         debug_stack[stackp].id = item->id;
+         debug_stack[stackp].mark = item->mark;
+         ++stackp;
+      } else if (item->type ==  DEBUG_FUNCTION_EXIT) {
+         --stackp;
+         assert(debug_stack[stackp].id == item->id);
+         u64 cycles = item->mark - debug_stack[stackp].mark;
+
+         x += drawString(t, f, x, y, item->file);
+         x += drawString(t, f, x, y, item->name);
+         x += drawInt(t, f, x, y, item->line);
+         x += drawInt(t, f, x, y, (int)cycles);
+
+         x = 5;
+         y -= f->lineHeight;
+      }
+   }
+
    drawTexturedVertexBuffer(r->FontVertexBuffer);
 
+   // draw ui plots
    glUseProgram(r->ColorProgram);
 
    glEnable(GL_SCISSOR_TEST);

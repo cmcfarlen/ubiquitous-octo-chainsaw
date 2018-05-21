@@ -159,6 +159,7 @@ Win32SetupRenderContext_t Win32SetupRenderContext = 0;
 Win32SelectRenderContext_t Win32SelectRenderContext = 0;
 
 platform_api Platform = { log, slurp, allocateMemory, freeMemory, pageSize, processorCount };
+debug_system* GlobalDebug = 0;
 
 // global renderer
 static renderer_api RenderAPI = {};
@@ -174,7 +175,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 	case WM_CREATE:
 	{
-
       Win32SetupRenderContext(hWnd, &Platform, &OpenGLContext);
       Win32SelectRenderContext(&OpenGLContext);
 
@@ -284,6 +284,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
    GameState = (game_state*)allocateFromRegion(permanentRegion, sizeof(game_state));
    GameState->Platform = Platform;
 
+   GlobalDebug = (debug_system*)allocateFromRegion(permanentRegion, sizeof(debug_system));
+   initializeDebugSystem(GlobalDebug);
+
+   GameState->DebugSystem = GlobalDebug;
+
    loadDll(&renderWatch);
    loadRenderAPI(&RenderAPI, renderWatch.handle);
 
@@ -301,14 +306,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	long frame = 0;
 	while (running)
 	{
-		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-		{
-			if (msg.message == WM_QUIT)
-			{
-				running = 0;
-			}
-			DispatchMessage(&msg);
-		}
+      {
+         timed_block("winmessages");
+         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+         {
+            if (msg.message == WM_QUIT)
+            {
+               running = 0;
+            }
+            DispatchMessage(&msg);
+         }
+      }
+
 		// maybe load the game code
       if (loadDll(&renderWatch)) {
          log("Reloading Renderer\n");
@@ -323,19 +332,25 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
          loadGameAPI(&GameAPI, gameWatch.handle);
       }
 
-		QueryPerformanceCounter(&now);
-		LONGLONG diff = now.QuadPart - prev.QuadPart;
-		float dt = (float)diff / (float)perffreq.QuadPart;
+      {
+         timed_block("updateandrender");
+         QueryPerformanceCounter(&now);
+         LONGLONG diff = now.QuadPart - prev.QuadPart;
+         float dt = (float)diff / (float)perffreq.QuadPart;
 
-      GameAPI.UpdateGameState(GameState, dt);
+         GameAPI.UpdateGameState(GameState, dt);
 
-      RenderAPI.RenderFrame(&Renderer, GameState);
-		SwapBuffers(OpenGLContext.dc);
+         RenderAPI.RenderFrame(&Renderer, GameState);
 
-		frame++;
-		if ((frame % 100) == 0) {
-			log("frame %i (%2.2f fps)\n", frame, frame / dt);
-		}
+         frame++;
+         if ((frame % 100) == 0) {
+            log("frame %i (%2.2f fps)\n", frame, frame / dt);
+         }
+      }
+      SwapBuffers(OpenGLContext.dc);
+
+      swapDebugFrame(GlobalDebug);
+
 	}
 
    return (int) msg.wParam;

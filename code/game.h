@@ -9,6 +9,7 @@
 struct game_state
 {
    platform_api Platform;
+   debug_system* DebugSystem;
 };
 
 typedef void (*UpdateGameState_t)(game_state*, f32);
