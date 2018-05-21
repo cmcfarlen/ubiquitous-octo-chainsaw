@@ -11,6 +11,7 @@ typedef struct platform_api
    void (*log)(const char* fmt, ...);
    u8* (*slurp)(const char* resource, u32*size);  //read entire resource
    void* (*allocateMemory)(size_t);
+   void (*freeMemory)(void*);
    u32 (*pageSize)();
    u32 (*processorCount)();
 

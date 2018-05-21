@@ -158,7 +158,7 @@ bool loadDll(dll_watch* watch)
 Win32SetupRenderContext_t Win32SetupRenderContext = 0;
 Win32SelectRenderContext_t Win32SelectRenderContext = 0;
 
-platform_api Platform = { log, slurp, allocateMemory, pageSize, processorCount };
+platform_api Platform = { log, slurp, allocateMemory, freeMemory, pageSize, processorCount };
 
 // global renderer
 static renderer_api RenderAPI = {};
@@ -184,7 +184,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		GetClientRect(hWnd, &rect);
 
       RenderAPI.ResizeWindow(&Renderer, rect.right, rect.bottom);
-      GameAPI.InitializeGame(GameState, rect.right, rect.bottom);
+      GameAPI.InitializeGame(GameState);
 
       break;
 	}
@@ -263,7 +263,6 @@ void loadRenderAPI(renderer_api* api, HMODULE dll)
 
 void loadGameAPI(game_api* api, HMODULE dll)
 {
-   api->CreateGameState = (CreateGameState_t)GetProcAddress(dll, "CreateGameState");
    api->UpdateGameState = (UpdateGameState_t)GetProcAddress(dll, "UpdateGameState");
    api->InitializeGame = (InitializeGame_t)GetProcAddress(dll, "InitializeGame");
 }
@@ -276,12 +275,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
    dll_watch renderWatch = {"win32_opengl.dll", "win32_opengl_copy.dll", "render_lock.tmp", 0, 0};
    dll_watch gameWatch = {"game.dll", "game_copy.dll", "lock.tmp", 0, 0};
+   memory_region* permanentRegion = createMemoryRegion();
 
 	// load game code first so the window can be initialized
    loadDll(&gameWatch);
    loadGameAPI(&GameAPI, gameWatch.handle);
 
-   GameState = GameAPI.CreateGameState();
+   GameState = (game_state*)allocateFromRegion(permanentRegion, sizeof(game_state));
+   GameState->Platform = Platform;
 
    loadDll(&renderWatch);
    loadRenderAPI(&RenderAPI, renderWatch.handle);

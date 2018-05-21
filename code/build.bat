@@ -4,7 +4,7 @@ set CFLAGS=-Od -nologo -fp:fast -fp:except- -Gm- -GR- -EHa- -Zo -Oi -WX -W4 -wd4
 set LDFLAGS=-incremental:no -opt:ref user32.lib gdi32.lib winmm.lib kernel32.lib
 
 set RENDER_EXPORTS=/EXPORT:Win32SetupRenderContext /EXPORT:Win32SelectRenderContext /EXPORT:InitializeRenderer /EXPORT:ResizeWindow /EXPORT:RenderFrame
-set GAME_EXPORTS=/EXPORT:CreateGameState /EXPORT:UpdateGameState /EXPORT:InitializeGame
+set GAME_EXPORTS=/EXPORT:UpdateGameState /EXPORT:InitializeGame
 
 IF NOT EXIST ..\build mkdir ..\build
 pushd ..\build

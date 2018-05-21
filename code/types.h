@@ -1,6 +1,13 @@
 #ifndef _TYPES_H
 #define _TYPES_H
 
+#ifdef _MSC_VER
+#define COMPILER_MSVC
+#include <intrin.h>
+#else
+#error Support other compilers
+#endif
+
 #include <math.h>
 #include <stdint.h>
 

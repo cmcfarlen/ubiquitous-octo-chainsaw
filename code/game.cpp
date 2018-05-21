@@ -1,32 +1,23 @@
 
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-
-#include <stdlib.h>
-#include <math.h>
-
 #include "types.h"
+
+#include "platform.h"
+
 #include "game.h"
 #include "assert.h"
 
+platform_api Platform;
+
 extern "C" {
 
-   game_state* CreateGameState()
+   void UpdateGameState(game_state* state, f32 )
    {
-      // TODO(dad): No stdlib
-      game_state* st = (game_state*)malloc(sizeof(game_state));
-      return st;
+      Platform = state->Platform;
    }
 
-   void UpdateGameState(game_state*, f32 )
+   void InitializeGame(game_state* state)
    {
-
-   }
-
-   void InitializeGame(game_state* state, int width, int height)
-   {
-      state->WindowWidth = width;
-      state->WindowHeight = height;
+      Platform = state->Platform;
    }
 }
 
