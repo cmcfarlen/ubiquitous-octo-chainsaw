@@ -553,6 +553,15 @@ void addTextured2DQuad(textured_vertex_buffer* b, vec2 pll, vec2 pur, vec2 tll, 
 
 screen_font* createFont(int Width, int Height, const char* fontName)
 {
+#define USE_STB_TRUETYPE 0
+#if USE_STB_TRUETYPE
+   u32 ttf_size;
+   u8*ttf = Platform.slurp(fontName, &ttf_size);
+   u8* img = (u8*)Platform.allocateMemory(Width*Height);
+
+   stbtt_BakeFontBitmap(ttf, 9, 32.0, img, Width, Height, 32, 96, cdata);
+
+#else
    HDC dc = CreateCompatibleDC(0);
    HBITMAP bitmap = CreateCompatibleBitmap(dc, Width, Height);
    BITMAP data;
@@ -681,6 +690,7 @@ screen_font* createFont(int Width, int Height, const char* fontName)
 
    result->textureData = (s8*)lumData;
    return result;
+#endif
 }
 
 screen_font_size* findFontSize(screen_font* font, int size)

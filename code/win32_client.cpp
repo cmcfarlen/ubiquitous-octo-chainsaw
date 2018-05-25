@@ -4,7 +4,6 @@
 // C RunTime Header Files
 #include <stdlib.h>
 #include <malloc.h>
-#include <memory.h>
 #include <tchar.h>
 #include <math.h>
 #include <assert.h>
@@ -16,6 +15,7 @@
 #include "win32_opengl.h"
 #include "renderer.h"
 #include "platform.h"
+#include "memory.h"
 
 void log(const char* fmt, ...)
 {
@@ -272,6 +272,22 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_In_ LPWSTR,
 	_In_ int       nCmdShow)
 {
+
+   memory_region* test_region = createMemoryRegion(32);
+
+   for (int i = 0; i < 10; i++) {
+      allocateFromRegion(test_region, 5);
+   }
+
+   truncateRegion(test_region);
+
+   for (int i = 0; i < 10; i++) {
+      allocateFromRegion(test_region, 5);
+   }
+
+   allocateFromRegion(test_region, 500);
+
+   freeRegion(test_region);
 
    dll_watch renderWatch = {"win32_opengl.dll", "win32_opengl_copy.dll", "render_lock.tmp", 0, 0};
    dll_watch gameWatch = {"game.dll", "game_copy.dll", "lock.tmp", 0, 0};
