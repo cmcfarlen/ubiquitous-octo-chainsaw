@@ -27,6 +27,7 @@ struct debug_frame
 
 struct debug_system
 {
+   double count_per_second; // debug counts / sec
    int frame_index; // double buffered debug frames
    debug_frame frame[2];
 };

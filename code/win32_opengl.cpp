@@ -738,7 +738,7 @@ f32 drawString(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y
    return X - XBegin;
 }
 
-f32 drawInt(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, int number, unsigned int padding = 1)
+f32 drawInt(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, s64 number, unsigned int padding = 1)
 {
    f32 X = XBegin;
 
@@ -774,6 +774,19 @@ f32 drawFloat(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y,
    f32 X = XBegin;
    int whole = (int)floorf(number);
    int fraction = (int)roundf((number - whole) * powf(10.0f, (f32)precision));
+
+   X += drawInt(b, p, X, Y, whole);
+   X += drawString(b, p, X, Y, ".");
+   X += drawInt(b, p, X, Y, fraction, precision);
+
+   return X - XBegin;
+}
+
+f32 drawDouble(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, f64 number, int precision)
+{
+   f32 X = XBegin;
+   s64 whole = (s64)floor(number);
+   s64 fraction = (s64)round((number - whole) * powf(10.0f, (f32)precision));
 
    X += drawInt(b, p, X, Y, whole);
    X += drawString(b, p, X, Y, ".");
@@ -1075,13 +1088,7 @@ void RenderFrame(renderer* r, game_state* state)
 
    glUseProgram(r->fontProgram);
    glBindTexture(GL_TEXTURE_2D, r->FontTexture);
-   x += 3 + drawString(t, f, x, y, "Hello World: ");
-   x += 3 + drawInt(t, f, x, y, 123124123);
-
-   drawFloat(t, f, x, y, 43.2341f, 4);
-   //drawFloat(t, f, x, y-f->lineHeight, 43.2341f, 4);
    
-   y -= f->lineHeight;
    x = 5;
    start_stack debug_stack[512];
    int stackp = 0;
@@ -1097,18 +1104,28 @@ void RenderFrame(renderer* r, game_state* state)
          assert(debug_stack[stackp].id == item->id);
          u64 cycles = item->mark - debug_stack[stackp].mark;
 
-         x += drawString(t, f, x, y, item->file);
+         float dt = (float)((double)cycles / GlobalDebug->count_per_second);
+
+       //  x += drawString(t, f, x, y, item->file);
+       //  x += drawString(t, f, x, y, ": ");
          x += drawString(t, f, x, y, item->name);
+         x += drawString(t, f, x, y, "(");
          x += drawInt(t, f, x, y, item->line);
-         x += drawInt(t, f, x, y, (int)cycles);
+         x += drawString(t, f, x, y, ") ");
+         x += drawFloat(t, f, x, y, dt * 1000.0f, 2);
 
          x = 5;
          y -= f->lineHeight;
       }
    }
 
+   x += drawString(t, f, x, y, "Debug cps: ");
+   x += drawDouble(t, f, x, y, GlobalDebug->count_per_second, 1);
+
+
    drawTexturedVertexBuffer(r->FontVertexBuffer);
 
+   /*
    // draw ui plots
    glUseProgram(r->ColorProgram);
 
@@ -1125,6 +1142,7 @@ void RenderFrame(renderer* r, game_state* state)
    drawColoredVertexLineStrip(r->Colors);
 
    glDisable(GL_SCISSOR_TEST);
+   */
 
    glBindVertexArray(0);
 }

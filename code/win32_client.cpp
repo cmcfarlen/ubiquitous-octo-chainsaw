@@ -267,11 +267,38 @@ void loadGameAPI(game_api* api, HMODULE dll)
    api->InitializeGame = (InitializeGame_t)GetProcAddress(dll, "InitializeGame");
 }
 
+double measure_debug_ticks()
+{
+   u64 clocks = 0;
+   u64 time = 0;
+   u64 c1, c2;
+   LARGE_INTEGER freq;
+   LARGE_INTEGER startTime;
+   LARGE_INTEGER endTime;
+
+   QueryPerformanceFrequency(&freq);
+
+
+   QueryPerformanceCounter(&startTime);
+   c1 = debug_clocks();
+   Sleep(1);
+   QueryPerformanceCounter(&endTime);
+   c2 = debug_clocks();
+   clocks = c2 - c1;
+
+   time = endTime.QuadPart - startTime.QuadPart;
+
+   double hpsecs = (double)time / (double)freq.QuadPart;
+
+   return (double) clocks /  hpsecs;
+}
+
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE,
 	_In_ LPWSTR,
 	_In_ int       nCmdShow)
 {
+
 
    memory_region* test_region = createMemoryRegion(32);
 
@@ -303,6 +330,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
    GlobalDebug = (debug_system*)allocateFromRegion(permanentRegion, sizeof(debug_system));
    initializeDebugSystem(GlobalDebug);
 
+
+   double dtps = 0;
+   for (int i = 0; i < 10; i++) {
+      dtps += measure_debug_ticks();
+   }
+
+   dtps /= 10.0;
+   GlobalDebug->count_per_second = dtps;
+
+   log("debug ticks: %llf\n", dtps);
    GameState->DebugSystem = GlobalDebug;
 
    loadDll(&renderWatch);
@@ -319,7 +356,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	QueryPerformanceCounter(&prev);
 	
 	int running = 1;
-	long frame = 0;
 	while (running)
 	{
       {
@@ -358,10 +394,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
          RenderAPI.RenderFrame(&Renderer, GameState);
 
-         frame++;
-         if ((frame % 100) == 0) {
-            log("frame %i (%2.2f fps)\n", frame, frame / dt);
-         }
       }
       SwapBuffers(OpenGLContext.dc);
 
