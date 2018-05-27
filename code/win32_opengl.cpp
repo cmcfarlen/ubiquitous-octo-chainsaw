@@ -346,6 +346,22 @@ mat4 Ortho2D(f32 left, f32 right, f32 top, f32 bottom, f32 n, f32 f)
    return r;
 }
 
+// https://unspecified.wordpress.com/2012/06/21/calculating-the-gluperspective-matrix-and-other-opengl-matrix-maths/
+mat4 Perspective(f32 fovy, f32 aspect, f32 znear, f32 zfar)
+{
+   mat4 r;
+   f32 f = 1.0f / tanf(fovy * 0.5f);
+   f32 m10 = (zfar+znear)/(znear-zfar);
+   f32 m14 = (2*zfar*znear)/(znear-zfar);
+
+   r.m[0] = f/aspect; r.m[4] = 0; r.m[ 8] =   0; r.m[12] = 0;
+   r.m[1] =        0; r.m[5] = f; r.m[ 9] =   0; r.m[13] = 0;
+   r.m[2] =        0; r.m[6] = 0; r.m[10] = m10; r.m[14] = m14;
+   r.m[3] =        0; r.m[7] = 0; r.m[11] =  -1; r.m[15] = 0;
+
+   return r;
+}
+
 mat4 PlotView(f32 DomainFrom, f32 DomainTo, f32 RangeFrom, f32 RangeTo, f32 X, f32 Y, f32 W, f32 H)
 {
    mat4 r;
@@ -954,6 +970,7 @@ bool InitializeRenderer(renderer* r)
    r->ColorProgram = compileShader("solid");
    r->Colors = createColoredVertexBuffer(256);
 
+   r->worldProj = Perspective(45.0f, (f32)r->viewport.width / (f32)r->viewport.height, 0.1f, 50.0f);
    r->uiProj = Ortho2D(0, (f32)r->viewport.width, 0, (f32)r->viewport.height, -1, 1);
    bindUniform(r->fontProgram, "proj", r->uiProj);
    bindUniform(r->fontProgram, "color", vec4(1, 1, 1, 1));
@@ -970,6 +987,7 @@ bool ResizeWindow(renderer* r, int width, int height)
    r->viewport.width = width;
    r->viewport.height = height;
 
+   r->worldProj = Perspective(45.0f, (f32)r->viewport.width / (f32)r->viewport.height, 0.1f, 50.0f);
    r->uiProj = Ortho2D(0, (f32)r->viewport.width, 0, (f32)r->viewport.height, -1, 1);
    bindUniform(r->fontProgram, "proj", r->uiProj);
 

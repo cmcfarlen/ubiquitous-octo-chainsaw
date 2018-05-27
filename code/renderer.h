@@ -73,6 +73,7 @@ typedef struct renderer
    colored_vertex_buffer* Colors;
    unsigned int ColorProgram;
 
+   mat4 worldProj;
    mat4 uiProj;
 } renderer;
 
