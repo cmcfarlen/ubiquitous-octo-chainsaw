@@ -55,6 +55,8 @@ struct textured_vertex_buffer
    unsigned int vao;
 };
 
+struct screen_font;
+
 typedef struct renderer
 {
    struct {

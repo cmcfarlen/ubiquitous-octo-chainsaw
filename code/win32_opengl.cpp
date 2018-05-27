@@ -7,6 +7,13 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb_truetype.h"
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STBI_MSC_SECURE_CRT
+#include "stb_image_write.h"
+
 // win32 has to manage its own gl function loading
 #include "glcorearb.h"
 
@@ -324,14 +331,17 @@ mat4 IdentityMatrix()
    return r;
 }
 
-mat4 Ortho2D(f32 w, f32 h, f32 n = -1, f32 f = 1)
+mat4 Ortho2D(f32 left, f32 right, f32 top, f32 bottom, f32 n, f32 f)
 {
+   f32 rml = right - left;
+   f32 tmb = top - bottom;
+   f32 fmn = f - n;
    mat4 r;
 
-   r.m[0] = 2.0f/w; r.m[4] =      0; r.m[ 8] =        0; r.m[12] =           -1;
-   r.m[1] =      0; r.m[5] = 2.0f/h; r.m[ 9] =        0; r.m[13] =           -1;
-   r.m[2] =      0; r.m[6] =      0; r.m[10] = -2/(f-n); r.m[14] = -(f+n)/(f-n);
-   r.m[3] =      0; r.m[7] =      0; r.m[11] =        0; r.m[15] =            1;
+   r.m[0] = 2.0f/rml; r.m[4] =        0; r.m[ 8] =      0; r.m[12] = -(right + left)/rml;
+   r.m[1] =        0; r.m[5] = 2.0f/tmb; r.m[ 9] =      0; r.m[13] = -(top + bottom)/tmb;
+   r.m[2] =        0; r.m[6] =        0; r.m[10] = -2/fmn; r.m[14] =          -(f+n)/fmn;
+   r.m[3] =        0; r.m[7] =        0; r.m[11] =      0; r.m[15] =                   1;
 
    return r;
 }
@@ -521,6 +531,7 @@ void drawTexturedVertexBuffer(textured_vertex_buffer* tvb)
    tvb->icnt = 0;
 }
 
+   //addTextured2DQuad(b, vec2(q.x0, q.y0), vec2(q.x1, q.y1), vec2(q.s0, q.t0), vec2(q.s1, q.t1));
 void addTextured2DQuad(textured_vertex_buffer* b, vec2 pll, vec2 pur, vec2 tll, vec2 tur)
 {
    if ((b->vcnt + 6) > b->max) {
@@ -530,19 +541,19 @@ void addTextured2DQuad(textured_vertex_buffer* b, vec2 pll, vec2 pur, vec2 tll, 
    u32 v = b->vcnt;
    u32 i = b->icnt;
 
-   b->vertices[v+0].P = vec3(pur); // top right
-   b->vertices[v+0].T = tur;
-   b->vertices[v+1].P = vec3(pur.x, pll.y); // bottom right
+   b->vertices[v+0].P = vec3(pll); // lower-left
+   b->vertices[v+0].T = tll;
+   b->vertices[v+1].P = vec3(pur.x, pll.y); // lower right
    b->vertices[v+1].T = vec2(tur.x, tll.y);
-   b->vertices[v+2].P = vec3(pll); // bottom left
-   b->vertices[v+2].T = tll;
+   b->vertices[v+2].P = vec3(pur); // upper-right
+   b->vertices[v+2].T = tur;
    b->vertices[v+3].P = vec3(pll.x, pur.y); // top left
    b->vertices[v+3].T = vec2(tll.x, tur.y);
 
    b->indices[i+0] = v + 0;
    b->indices[i+1] = v + 1;
-   b->indices[i+2] = v + 3;
-   b->indices[i+3] = v + 1;
+   b->indices[i+2] = v + 2;
+   b->indices[i+3] = v + 0;
    b->indices[i+4] = v + 2;
    b->indices[i+5] = v + 3;
 
@@ -551,177 +562,90 @@ void addTextured2DQuad(textured_vertex_buffer* b, vec2 pll, vec2 pur, vec2 tll, 
    b->icnt += 6;
 }
 
+struct screen_font_size
+{
+   f32 size;
+   int firstChar;
+   int lastChar;
+   int width;
+   int height;
+   stbtt_bakedchar cdata[96];
+};
+
+
+struct screen_font
+{
+   const char* fontName;
+   int numSizes;
+   u8* textureData;
+   screen_font_size sizes[5];
+
+};
+
 screen_font* createFont(int Width, int Height, const char* fontName)
 {
-#define USE_STB_TRUETYPE 0
-#if USE_STB_TRUETYPE
    u32 ttf_size;
    u8*ttf = Platform.slurp(fontName, &ttf_size);
-   u8* img = (u8*)Platform.allocateMemory(Width*Height);
+   u8* img = (u8*)malloc(Width*Height); //Platform.allocateMemory(Width*Height);
 
-   stbtt_BakeFontBitmap(ttf, 9, 32.0, img, Width, Height, 32, 96, cdata);
-
-#else
-   HDC dc = CreateCompatibleDC(0);
-   HBITMAP bitmap = CreateCompatibleBitmap(dc, Width, Height);
-   BITMAP data;
-
-   SelectObject(dc, bitmap);
-   int fontSizes[] = {12, 18, 24, 36, 0};
-   char firstChar = 0x21;
-   char lastChar = 0x7e;
-   int X = 0;
-   int Y = 0;
-
-   // TODO(dad): don't use malloc
    screen_font* result = (screen_font*)malloc(sizeof(screen_font));
 
-   result->fontName = _strdup(fontName);
-   result->numSizes = 4;
-   result->sizes = (screen_font_size*)malloc(sizeof(screen_font_size) * 4);
+   f32 sizes[] = {12.0, 16.0, 18.0, 22.0,  32.0 };
 
-   //SetBkMode(dc, TRANSPARENT);
-   SetBkMode(dc, RGB(0, 0, 0));
-   SetTextColor(dc, RGB(0xff, 0xff, 0xff));
+   result->fontName = fontName;
+   result->numSizes = sizeof(sizes)/sizeof(sizes[0]);
+   result->textureData = img;
 
-   for (int i = 0; fontSizes[i]; i++) {
-      HFONT font = CreateFont(fontSizes[i], 0, 0, 0, 
-            FW_BOLD, 0, 0, 0,
-            DEFAULT_CHARSET,
-            OUT_OUTLINE_PRECIS,
-            CLIP_DEFAULT_PRECIS,
-            PROOF_QUALITY,
-            FF_MODERN,
-            fontName);
 
-      SelectObject(dc, font);
-      TEXTMETRIC metrics;
-      GetTextMetrics(dc, &metrics);
+   u32 rows = 0;
+   for (int i = 0; i < result->numSizes; i++) {
+      screen_font_size* fs = result->sizes + i;
+      f32 sz = sizes[i];
 
-      screen_font_size* ps = result->sizes + i;
+      fs->size = sz;
+      fs->firstChar = 32;
+      fs->lastChar = 96;
+      fs->width = Width;
+      fs->height = Height;
 
-      ps->size = fontSizes[i];
-      ps->firstChar = firstChar;
-      ps->lastChar = lastChar;
-      ps->entries = (screen_font_entry*)malloc(sizeof(screen_font_entry) * (lastChar - firstChar + 1));
-      ps->lineHeight = metrics.tmHeight;
+      u32 r = stbtt_BakeFontBitmap(ttf, 0, sz, img + Width * rows, Width, Height - rows, 32, 96, fs->cdata);
 
-      // for every character, get the size and write to bitmap
-      for (char c = firstChar; c < lastChar; c++) {
-         SIZE charSize;
-         GetTextExtentPoint32(dc, &c, 1, &charSize);
-         // when we lookup a char in entries, subtract firstChar to get the index into the entries array
-         int idx = c - firstChar;
-
-         if ((X + charSize.cy) > Width) {
-            X = 0;
-            Y += metrics.tmHeight;
-         }
-         f32 u = X / (f32)Width;
-         f32 v = (Height - Y - charSize.cy) / (f32)Height; // convert to opengl coords (origin in lower left)
-
-         int advance = charSize.cx + 2;
-
-         ps->entries[idx].codePoint = c;
-         ps->entries[idx].u1 = u;
-         ps->entries[idx].v1 = v;
-         ps->entries[idx].u2 = u + charSize.cx / (f32)Width;
-         ps->entries[idx].v2 = v + charSize.cy / (f32)Height;
-         ps->entries[idx].w = charSize.cx;
-         ps->entries[idx].h = charSize.cy;
-
-         TextOut(dc, X, Y, &c, 1);
-
-         X += advance;
+      for (int idx = 0; idx < 96; idx++) {
+         fs->cdata[idx].y0 += (u16)rows;
+         fs->cdata[idx].y1 += (u16)rows;
       }
 
-      X = 0;
-      Y += metrics.tmHeight;
+      rows += r;
    }
 
-   // write bitmap to file
-   GetObject(bitmap, sizeof(BITMAP), &data);
+   stbi_write_bmp("stbtt.bmp", Width, Height, 1, img);
 
-   BITMAPFILEHEADER header = {};
-   BITMAPINFOHEADER bi = {};
-
-   bi.biSize = sizeof(BITMAPINFOHEADER);
-   bi.biWidth = data.bmWidth;
-   bi.biHeight = data.bmHeight;
-   bi.biPlanes = 1;
-   bi.biBitCount = 32;
-   bi.biCompression = BI_RGB;
-
-   DWORD bmpSize = ((data.bmWidth * bi.biBitCount + 31) / 32) * 4 * data.bmHeight;
-   char* imageData = (char*)malloc(bmpSize);
-
-   GetDIBits(dc, bitmap, 0, Width, imageData,(BITMAPINFO*)&bi, DIB_RGB_COLORS);
-
-   HANDLE f = CreateFile("test.bmp", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-
-   DWORD totalSize = bmpSize + sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
-
-   header.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
-   header.bfSize = totalSize;
-   header.bfType = 0x4D42;
-
-   DWORD byteCount = 0;
-   WriteFile(f, (char*)&header, sizeof(BITMAPFILEHEADER), &byteCount, NULL);
-   WriteFile(f, (char*)&bi, sizeof(BITMAPINFOHEADER), &byteCount, NULL);
-   WriteFile(f, imageData, bmpSize, &byteCount, NULL);
-
-   CloseHandle(f);
-
-   DeleteObject(bitmap);
-   DeleteObject(dc);
-
-   u8* lumData = (u8*)malloc(Width*Height);
-   u32* pixels = (u32*)imageData;
-
-   for (int i = 0; i < Width*Height; i++) {
-      if (pixels[i]) {
-         lumData[i] = 0xff;
-      } else {
-         lumData[i] = 0x00;
-      }
-   }
-
-   free(imageData);
-
-   result->textureData = (s8*)lumData;
    return result;
-#endif
 }
 
 screen_font_size* findFontSize(screen_font* font, int size)
 {
-   screen_font_size* p = font->sizes;
    for (int i = 0; i < font->numSizes; i++) {
-      if (font->sizes[i].size == size) {
-         p = font->sizes + i;
-         break;
+      if (font->sizes[i].size > size) {
+         return font->sizes + i;
       }
    }
 
-   return p;
+   // return first if not found
+   return font->sizes;
 }
 
-f32 drawChar(textured_vertex_buffer* b, screen_font_size* s, char c, f32 X, f32 Y)
+f32 drawChar(textured_vertex_buffer* b, screen_font_size* s, int c, f32 X, f32 Y)
 {
-   int entry = (int)(c - s->firstChar);
-   screen_font_entry* e =  &s->entries[entry];
+   f32 x = X;
+   f32 y = Y;
+   stbtt_aligned_quad q;
 
-   f32 W = (f32)e->w;
-   f32 H = (f32)e->h;
-   f32 u1 = e->u1;
-   f32 v1 = e->v1;
+   stbtt_GetBakedQuad(s->cdata, s->width, s->height, c - s->firstChar, &x, &y, &q, 1);
 
-   f32 u2 = e->u2;
-   f32 v2 = e->v2;
+   addTextured2DQuad(b, vec2(q.x0, q.y0), vec2(q.x1, q.y1), vec2(q.s0, q.t0), vec2(q.s1, q.t1));
 
-   addTextured2DQuad(b, vec2(X, Y), vec2(X+W, Y+H), vec2(u1, v1), vec2(u2, v2));
-
-   return W;
+   return x - X;
 }
 
 f32 drawString(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, const char* text)
@@ -797,10 +721,6 @@ f32 drawDouble(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y
 
 void free_screen_font(screen_font* f)
 {
-   for (int s = 0; s < f->numSizes; s++) {
-      free(f->sizes[s].entries);
-   }
-   free(f->sizes);
    free(f->textureData);
    free(f);
 }
@@ -1026,7 +946,7 @@ bool InitializeRenderer(renderer* r)
    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
-   r->TheFont = createFont(512, 512, "Droid Sans Mono Slashed");
+   r->TheFont = createFont(512, 512, "monaco.ttf");
    r->FontTexture = createTexture((u8*)r->TheFont->textureData, 512, 512, 1, GL_RED);
    r->fontProgram = compileShader("font.vert", "font.frag");
    r->FontVertexBuffer = createTexturedVertexBuffer(512);
@@ -1034,13 +954,13 @@ bool InitializeRenderer(renderer* r)
    r->ColorProgram = compileShader("solid");
    r->Colors = createColoredVertexBuffer(256);
 
-   r->uiProj = Ortho2D((f32)r->viewport.width, (f32)r->viewport.height);
+   r->uiProj = Ortho2D(0, (f32)r->viewport.width, 0, (f32)r->viewport.height, -1, 1);
    bindUniform(r->fontProgram, "proj", r->uiProj);
    bindUniform(r->fontProgram, "color", vec4(1, 1, 1, 1));
 
-   bindUniform(r->ColorProgram, "proj", r->uiProj);
+   bindUniform(r->ColorProgram, "proj", Ortho2D(0, (f32)r->viewport.width, (f32)r->viewport.height, 0, -1, 1));
    //bindUniform(r->ColorProgram, "view", IdentityMatrix());
-   bindUniform(r->ColorProgram, "view", PlotView(-10, 10, -1.5, 1.5, 500, 500, 200, 200));
+   bindUniform(r->ColorProgram, "view", PlotView(-10, 10, -1.5, 1.5, 502, 502, 200, 100));
 
    return true;
 }
@@ -1050,9 +970,10 @@ bool ResizeWindow(renderer* r, int width, int height)
    r->viewport.width = width;
    r->viewport.height = height;
 
-   r->uiProj = Ortho2D((f32)r->viewport.width, (f32)r->viewport.height);
+   r->uiProj = Ortho2D(0, (f32)r->viewport.width, 0, (f32)r->viewport.height, -1, 1);
    bindUniform(r->fontProgram, "proj", r->uiProj);
-   bindUniform(r->ColorProgram, "proj", r->uiProj);
+
+   bindUniform(r->ColorProgram, "proj", Ortho2D(0, (f32)r->viewport.width, (f32)r->viewport.height, 0, -1, 1));
 
    glViewport(0, 0, width, height);
 
@@ -1076,11 +997,10 @@ void RenderFrame(renderer* r, game_state* state)
    glClear(GL_COLOR_BUFFER_BIT);
 
    textured_vertex_buffer* t = r->FontVertexBuffer;
-   screen_font_size* f = findFontSize(r->TheFont, 36);
+   screen_font_size* f = findFontSize(r->TheFont, 9);
 
-   f32 h = (f32)r->viewport.height;
-   f32 y = h - f->lineHeight;
-   f32 x = 5;
+   f32 y = f->size;
+   f32 x = 50;
 
    // draw ui text
    glEnable(GL_BLEND);
@@ -1106,8 +1026,8 @@ void RenderFrame(renderer* r, game_state* state)
 
          float dt = (float)((double)cycles / GlobalDebug->count_per_second);
 
-       //  x += drawString(t, f, x, y, item->file);
-       //  x += drawString(t, f, x, y, ": ");
+         x += drawString(t, f, x, y, item->file);
+         x += drawString(t, f, x, y, ": ");
          x += drawString(t, f, x, y, item->name);
          x += drawString(t, f, x, y, "(");
          x += drawInt(t, f, x, y, item->line);
@@ -1115,15 +1035,15 @@ void RenderFrame(renderer* r, game_state* state)
          x += drawFloat(t, f, x, y, dt * 1000.0f, 2);
 
          x = 5;
-         y -= f->lineHeight;
+         y += f->size;
       }
    }
 
    x += drawString(t, f, x, y, "Debug cps: ");
    x += drawDouble(t, f, x, y, GlobalDebug->count_per_second, 1);
 
-
    drawTexturedVertexBuffer(r->FontVertexBuffer);
+
 
    /*
    // draw ui plots

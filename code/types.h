@@ -138,31 +138,4 @@ vec3 operator*(vec3 a, float b)
    return r;
 }
 
-struct screen_font_entry
-{
-   char codePoint;
-   f32 u1;
-   f32 v1;
-   f32 u2;
-   f32 v2;
-   s32 w;
-   s32 h;
-};
-
-struct screen_font_size
-{
-   s32 size;
-   int firstChar;
-   int lastChar;
-   int lineHeight;
-   screen_font_entry* entries;
-};
-
-struct screen_font {
-   char* fontName;
-   int numSizes;
-   s8* textureData;
-   screen_font_size* sizes;
-};
-
 #endif
