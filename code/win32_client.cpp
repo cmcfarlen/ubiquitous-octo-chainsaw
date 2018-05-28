@@ -167,6 +167,19 @@ static game_api GameAPI = {};
 static win32_opengl_render_context OpenGLContext = {};
 static renderer Renderer = {};
 static game_state* GameState = 0;
+static game_input GlobalInput = {};
+static u8 keymappings[256];
+
+void setupKeymappings(u8* map)
+{
+   map[0+'W'] = BUTTON_FORWARD;
+   map[0+'A'] = BUTTON_LEFT;
+   map[0+'S'] = BUTTON_BACK;
+   map[0+'D'] = BUTTON_RIGHT;
+   map[0+'Q'] = BUTTON_DOWN;
+   map[0+'E'] = BUTTON_UP;
+}
+
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -198,6 +211,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
       RenderAPI.ResizeWindow(&Renderer, rect.right, rect.bottom);
       break;
 	}
+   case WM_KEYDOWN:
+   {
+      // wParam is the keycode, map it to the game button
+
+	   u8 button = keymappings[wParam];
+
+      if (button) {
+         GlobalInput.buttons_down[button] = 1;
+      }
+      GlobalInput.letters_down[wParam] = 1;
+      break;
+   }
+   case WM_KEYUP:
+   {
+      u8 button = keymappings[wParam];
+
+      if (button) {
+         GlobalInput.buttons_down[button] = 0;
+      }
+      GlobalInput.letters_down[wParam] = 0;
+      break;
+   }
 	case WM_PAINT:
 	{
 		PAINTSTRUCT ps;
@@ -354,6 +389,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	LARGE_INTEGER prev;
 	QueryPerformanceFrequency(&perffreq);
 	QueryPerformanceCounter(&prev);
+
+   // read initial cursor position
+   POINT cursorPt;
+
+   GetCursorPos(&cursorPt);
+   GlobalInput.mouse_p = vec2((f32)cursorPt.x, (f32)cursorPt.y);
+   GlobalInput.mouse_dp = vec2(0, 0);
+   setupKeymappings(keymappings);
 	
 	int running = 1;
 	while (running)
@@ -387,10 +430,19 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
       {
          timed_block("updateandrender");
          QueryPerformanceCounter(&now);
-         LONGLONG diff = now.QuadPart - prev.QuadPart;
-         float dt = (float)diff / (float)perffreq.QuadPart;
+         GetCursorPos(&cursorPt);
 
-         GameAPI.UpdateGameState(GameState, dt);
+         LONGLONG diff = now.QuadPart - prev.QuadPart;
+         prev = now;
+         float dt = (float)diff / (float)perffreq.QuadPart;
+         vec2 mouse_p = vec2((f32)cursorPt.x, (f32)cursorPt.y);
+
+         GlobalInput.dt = dt;
+
+         GlobalInput.mouse_dp = mouse_p - GlobalInput.mouse_p;
+         GlobalInput.mouse_p = mouse_p;
+
+         GameAPI.UpdateGameState(GameState, &GlobalInput);
 
          RenderAPI.RenderFrame(&Renderer, GameState);
 

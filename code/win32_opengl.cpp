@@ -310,14 +310,120 @@ void LoadGL()
 // renderer implementation
 //
 
+#pragma pack(push, 1)
+struct textured_vertex
+{
+   vec3 P;
+   vec2 T;
+};
+
+struct colored_vertex
+{
+   vec3 P;
+   vec4 C;
+};
+#pragma pack(pop)
+
+struct colored_vertex_buffer
+{
+   u32 max;
+   u32 vcnt;
+   u32 icnt;
+   colored_vertex* vertices;
+   u32* indices;
+   unsigned int buffers[2];
+   unsigned int vao;
+};
+
+struct textured_vertex_buffer
+{
+   u32 max;
+   u32 vcnt;
+   u32 icnt;
+   textured_vertex* vertices;
+   u32* indices;
+   unsigned int buffers[2];
+   unsigned int vao;
+};
+
+struct drawable_cube
+{
+   vec4 color;
+   vec3 p;
+};
+
+struct screen_font;
+struct renderer_implementation
+{
+   screen_font* TheFont;
+   unsigned int fontProgram;
+   unsigned int FontTexture;
+   textured_vertex_buffer* FontVertexBuffer;
+   colored_vertex_buffer* Colors;
+   unsigned int ColorProgram;
+
+   unsigned int WorldProgram;
+   colored_vertex_buffer* CubeVertices;
+   drawable_cube cubes[10];
+
+   mat4 worldProj;
+   mat4 uiProj;
+};
+
+platform_api Platform;
+debug_system* GlobalDebug;
+renderer_implementation Renderer;
+
 void assertGL()
 {
    GLenum err = glGetError();
    assert(err == GL_NO_ERROR);
 }
 
-platform_api Platform;
-debug_system* GlobalDebug;
+mat4 operator*(const mat4& ma, const mat4& mb)
+{
+   const f32* a = ma.m;
+   const f32* b = mb.m;
+   mat4 r;
+
+   f32 b0 = b[0];
+   f32 b1 = b[1];
+   f32 b2 = b[2];
+   f32 b3 = b[3];
+   r.m[0] = a[0]*b0 + a[4]*b1 + a[ 8]*b2 + a[12]*b3;
+   r.m[1] = a[1]*b0 + a[5]*b1 + a[ 9]*b2 + a[13]*b3;
+   r.m[2] = a[2]*b0 + a[6]*b1 + a[10]*b2 + a[14]*b3;
+   r.m[3] = a[3]*b0 + a[7]*b1 + a[11]*b2 + a[15]*b3;
+
+   b0 = b[4];
+   b1 = b[5];
+   b2 = b[6];
+   b3 = b[7];
+   r.m[4] = a[0]*b0 + a[4]*b1 + a[ 8]*b2 + a[12]*b3;
+   r.m[5] = a[1]*b0 + a[5]*b1 + a[ 9]*b2 + a[13]*b3;
+   r.m[6] = a[2]*b0 + a[6]*b1 + a[10]*b2 + a[14]*b3;
+   r.m[7] = a[3]*b0 + a[7]*b1 + a[11]*b2 + a[15]*b3;
+
+   b0 = b[8];
+   b1 = b[9];
+   b2 = b[10];
+   b3 = b[11];
+   r.m[8] = a[0]*b0 + a[4]*b1 + a[ 8]*b2 + a[12]*b3;
+   r.m[9] = a[1]*b0 + a[5]*b1 + a[ 9]*b2 + a[13]*b3;
+   r.m[10] = a[2]*b0 + a[6]*b1 + a[10]*b2 + a[14]*b3;
+   r.m[11] = a[3]*b0 + a[7]*b1 + a[11]*b2 + a[15]*b3;
+
+   b0 = b[12];
+   b1 = b[13];
+   b2 = b[14];
+   b3 = b[15];
+   r.m[12] = a[0]*b0 + a[4]*b1 + a[ 8]*b2 + a[12]*b3;
+   r.m[13] = a[1]*b0 + a[5]*b1 + a[ 9]*b2 + a[13]*b3;
+   r.m[14] = a[2]*b0 + a[6]*b1 + a[10]*b2 + a[14]*b3;
+   r.m[15] = a[3]*b0 + a[7]*b1 + a[11]*b2 + a[15]*b3;
+
+   return r;
+}
 
 mat4 IdentityMatrix()
 {
@@ -325,6 +431,97 @@ mat4 IdentityMatrix()
 
    r.m[0] = 1; r.m[4] = 0; r.m[ 8] = 0; r.m[12] = 0;
    r.m[1] = 0; r.m[5] = 1; r.m[ 9] = 0; r.m[13] = 0;
+   r.m[2] = 0; r.m[6] = 0; r.m[10] = 1; r.m[14] = 0;
+   r.m[3] = 0; r.m[7] = 0; r.m[11] = 0; r.m[15] = 1;
+
+   return r;
+}
+
+mat4 translationMatrix(vec3 t)
+{
+   mat4 r;
+
+   r.m[0] = 1; r.m[4] = 0; r.m[ 8] = 0; r.m[12] = t.x;
+   r.m[1] = 0; r.m[5] = 1; r.m[ 9] = 0; r.m[13] = t.y;
+   r.m[2] = 0; r.m[6] = 0; r.m[10] = 1; r.m[14] = t.z;
+   r.m[3] = 0; r.m[7] = 0; r.m[11] = 0; r.m[15] = 1;
+
+   return r;
+}
+
+mat4 scaleMatrix(vec3 t)
+{
+   mat4 r;
+
+   r.m[0] = t.x; r.m[4] =   0; r.m[ 8] =   0; r.m[12] = 0;
+   r.m[1] =   0; r.m[5] = t.y; r.m[ 9] =   0; r.m[13] = 0;
+   r.m[2] =   0; r.m[6] =   0; r.m[10] = t.z; r.m[14] = 0;
+   r.m[3] =   0; r.m[7] =   0; r.m[11] =   0; r.m[15] = 1;
+
+   return r;
+}
+
+mat4 rotationMatrix(f32 radians, vec3 axis_in)
+{
+   vec3 axis = normalize(axis_in);
+
+   f32 x = axis.x;
+   f32 y = axis.y;
+   f32 z = axis.z;
+
+   f32 s = sinf(radians);
+   f32 c = cosf(radians);
+   f32 t = 1 - c;
+
+   mat4 r;
+
+   r.m[0] =     x * x * t + c; r.m[4] = x * y * t - z * s; r.m[ 8] = x * z * t + y * s; r.m[12] = 0;
+   r.m[1] = y * x * t + z * s; r.m[5] =     y * y * t + c; r.m[ 9] = y * z * t - x * s; r.m[13] = 0;
+   r.m[2] = z * x * t - y * s; r.m[6] = z * y * t + x * s; r.m[10] =     z * z * t + c; r.m[14] = 0;
+   r.m[3] =                 0; r.m[7] =                 0; r.m[11] =                 0; r.m[15] = 1;
+
+   return r;
+}
+   
+mat4 rotationX(f32 radians)
+{
+   f32 s = sinf(radians);
+   f32 c = cosf(radians);
+
+   mat4 r;
+
+   r.m[0] = 1; r.m[4] = 0; r.m[ 8] = 0; r.m[12] = 0;
+   r.m[1] = 0; r.m[5] = c; r.m[ 9] =-s; r.m[13] = 0;
+   r.m[2] = 0; r.m[6] = s; r.m[10] = c; r.m[14] = 0;
+   r.m[3] = 0; r.m[7] = 0; r.m[11] = 0; r.m[15] = 1;
+
+   return r;
+}
+
+mat4 rotationY(f32 radians)
+{
+   f32 s = sinf(radians);
+   f32 c = cosf(radians);
+
+   mat4 r;
+
+   r.m[0] = c; r.m[4] = 0; r.m[ 8] = s; r.m[12] = 0;
+   r.m[1] = 0; r.m[5] = 1; r.m[ 9] = 0; r.m[13] = 0;
+   r.m[2] =-s; r.m[6] = 0; r.m[10] = c; r.m[14] = 0;
+   r.m[3] = 0; r.m[7] = 0; r.m[11] = 0; r.m[15] = 1;
+
+   return r;
+}
+
+mat4 rotationZ(f32 radians)
+{
+   f32 s = sinf(radians);
+   f32 c = cosf(radians);
+
+   mat4 r;
+
+   r.m[0] = c; r.m[4] =-s; r.m[ 8] = 0; r.m[12] = 0;
+   r.m[1] = s; r.m[5] = c; r.m[ 9] = 0; r.m[13] = 0;
    r.m[2] = 0; r.m[6] = 0; r.m[10] = 1; r.m[14] = 0;
    r.m[3] = 0; r.m[7] = 0; r.m[11] = 0; r.m[15] = 1;
 
@@ -712,8 +909,22 @@ f32 drawInt(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, s
 f32 drawFloat(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, f32 number, int precision)
 {
    f32 X = XBegin;
+
+   bool neg = number < 0 ? 1 : 0;
+
+   number = fabsf(number);
+
+   if (number < 2 * EPSILON) {
+      number = 0.0f;
+      neg = 0;
+   }
+
    int whole = (int)floorf(number);
    int fraction = (int)roundf((number - whole) * powf(10.0f, (f32)precision));
+
+   if (neg) {
+      X += drawChar(b, p, '-', X, Y);
+   }
 
    X += drawInt(b, p, X, Y, whole);
    X += drawString(b, p, X, Y, ".");
@@ -734,6 +945,35 @@ f32 drawDouble(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y
 
    return X - XBegin;
 }
+
+f32 drawVec3(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, vec3 v)
+{
+   f32 X = XBegin;
+
+   X += drawChar(b, p, '[', X, Y);
+   X += drawFloat(b, p, X, Y, v.x, 3);
+   X += drawChar(b, p, ' ', X, Y);
+   X += drawFloat(b, p, X, Y, v.y, 3);
+   X += drawChar(b, p, ' ', X, Y);
+   X += drawFloat(b, p, X, Y, v.z, 3);
+   X += drawChar(b, p, ']', X, Y);
+
+   return X - XBegin;
+}
+
+f32 drawVec2(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, vec2 v)
+{
+   f32 X = XBegin;
+
+   X += drawChar(b, p, '[', X, Y);
+   X += drawFloat(b, p, X, Y, v.x, 3);
+   X += drawChar(b, p, ' ', X, Y);
+   X += drawFloat(b, p, X, Y, v.y, 3);
+   X += drawChar(b, p, ']', X, Y);
+
+   return X - XBegin;
+}
+
 
 void free_screen_font(screen_font* f)
 {
@@ -941,10 +1181,16 @@ bool Win32SelectRenderContext(win32_opengl_render_context* context)
 
 // platform independent api
 
-bool InitializeRenderer(renderer* r)
+bool InitializeRenderer(renderer* rin)
 {
    // load opengl api on intialize in case of dll reload
    LoadGL();
+
+   rin->impl = &Renderer;
+   renderer_implementation *r = &Renderer;
+   screen_viewport* vp = &rin->viewport;
+
+
 
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0);
 	
@@ -957,7 +1203,10 @@ bool InitializeRenderer(renderer* r)
       glDeleteProgram(r->ColorProgram);
       freeTexturedVertexBuffer(r->FontVertexBuffer);
       freeColoredVertexBuffer(r->Colors);
+
+      glDeleteProgram(r->WorldProgram);
    }
+
 
    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -970,28 +1219,34 @@ bool InitializeRenderer(renderer* r)
    r->ColorProgram = compileShader("solid");
    r->Colors = createColoredVertexBuffer(256);
 
-   r->worldProj = Perspective(45.0f, (f32)r->viewport.width / (f32)r->viewport.height, 0.1f, 50.0f);
-   r->uiProj = Ortho2D(0, (f32)r->viewport.width, 0, (f32)r->viewport.height, -1, 1);
+   r->WorldProgram = compileShader("solid3d");
+   r->worldProj = Perspective(45.0f, (f32)vp->width / (f32)vp->height, 0.1f, 50.0f);
+
+
+   r->uiProj = Ortho2D(0, (f32)vp->width, 0, (f32)vp->height, -1, 1);
    bindUniform(r->fontProgram, "proj", r->uiProj);
    bindUniform(r->fontProgram, "color", vec4(1, 1, 1, 1));
 
-   bindUniform(r->ColorProgram, "proj", Ortho2D(0, (f32)r->viewport.width, (f32)r->viewport.height, 0, -1, 1));
+   bindUniform(r->ColorProgram, "proj", Ortho2D(0, (f32)vp->width, (f32)vp->height, 0, -1, 1));
    //bindUniform(r->ColorProgram, "view", IdentityMatrix());
    bindUniform(r->ColorProgram, "view", PlotView(-10, 10, -1.5, 1.5, 502, 502, 200, 100));
 
    return true;
 }
 
-bool ResizeWindow(renderer* r, int width, int height)
+bool ResizeWindow(renderer* rin, int width, int height)
 {
-   r->viewport.width = width;
-   r->viewport.height = height;
+   renderer_implementation* r = rin->impl;
+   screen_viewport* vp = &rin->viewport;
 
-   r->worldProj = Perspective(45.0f, (f32)r->viewport.width / (f32)r->viewport.height, 0.1f, 50.0f);
-   r->uiProj = Ortho2D(0, (f32)r->viewport.width, 0, (f32)r->viewport.height, -1, 1);
+   vp->width = width;
+   vp->height = height;
+
+   r->worldProj = Perspective(45.0f, (f32)vp->width / (f32)vp->height, 0.1f, 50.0f);
+   r->uiProj = Ortho2D(0, (f32)vp->width, 0, (f32)vp->height, -1, 1);
    bindUniform(r->fontProgram, "proj", r->uiProj);
 
-   bindUniform(r->ColorProgram, "proj", Ortho2D(0, (f32)r->viewport.width, (f32)r->viewport.height, 0, -1, 1));
+   bindUniform(r->ColorProgram, "proj", Ortho2D(0, (f32)vp->width, (f32)vp->height, 0, -1, 1));
 
    glViewport(0, 0, width, height);
 
@@ -1004,15 +1259,48 @@ struct start_stack
    u64 mark;
 };
 
-void RenderFrame(renderer* r, game_state* state)
+const char* button_names[] = {
+   "NOTAKEY",
+   "FORWARD",
+   "BACK",
+   "LEFT",
+   "RIGHT",
+   "UP",
+   "DOWN"
+};
+
+void RenderFrame(renderer* rin, game_state* state)
 {
+   renderer_implementation* r = rin->impl;
    GlobalDebug = state->DebugSystem;
 
    glFinish();
 
    timed_function();
 
-   glClear(GL_COLOR_BUFFER_BIT);
+   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+   // world pass
+   world_camera* camera = &state->world.camera;
+   
+   glEnable(GL_DEPTH);
+   glDisable(GL_BLEND);
+
+   mat4 view = rotationY(camera->yaw) * rotationX(camera->pitch) * translationMatrix(camera->p);
+
+   glUseProgram(r->WorldProgram);
+   bindUniform(r->WorldProgram, "proj", r->worldProj);
+   bindUniform(r->WorldProgram, "view", view);
+   bindUniform(r->WorldProgram, "model", rotationY(0.1));
+
+
+   addColored2DQuad(r->Colors, vec2(-10, -10), vec2(10, 10), vec4(0.8f, 0.2f, 0.2f, 1));
+   drawColoredVertexTriangles(r->Colors);
+
+   
+   glDisable(GL_DEPTH);
+
+   // ui pass
 
    textured_vertex_buffer* t = r->FontVertexBuffer;
    screen_font_size* f = findFontSize(r->TheFont, 9);
@@ -1060,8 +1348,55 @@ void RenderFrame(renderer* r, game_state* state)
    x += drawString(t, f, x, y, "Debug cps: ");
    x += drawDouble(t, f, x, y, GlobalDebug->count_per_second, 1);
 
+   y += f->size;
+   x = 5;
+   x += drawString(t, f, x, y, "Camera P: ");
+   x += drawVec3(t, f, x, y, camera->p);
+
+   y += f->size;
+   x = 5;
+   x += drawString(t, f, x, y, "Camera V: ");
+   x += drawVec3(t, f, x, y, camera->v);
+
+   y += f->size;
+   x = 5;
+   x += drawString(t, f, x, y, "Mouse P: ");
+   x += drawVec2(t, f, x, y, state->current_input.mouse_p);
+   x += drawVec2(t, f, x, y, state->current_input.mouse_dp);
+
+   y += f->size;
+   x = 5;
+   x += drawString(t, f, x, y, "Buttons: [");
+   int downCount = 0;
+   for (int i = 0; i < BUTTON_MAX_DEFINED; i++)
+   {
+      if (state->current_input.buttons_down[i]) {
+         if (downCount) {
+            x += drawString(t, f, x, y, ",");
+         }
+         x += drawString(t, f, x, y,  button_names[i]);
+         downCount++;
+      }
+   }
+   x += drawString(t, f, x, y, "]");
    drawTexturedVertexBuffer(r->FontVertexBuffer);
 
+   y += f->size;
+   x = 5;
+   x += drawString(t, f, x, y, "Letters: [");
+   downCount = 0;
+   for (int i = 0; i < 256; i++)
+   {
+      if (state->current_input.letters_down[i]) {
+         if (downCount) {
+            x += drawChar(t, f, ',', x, y);
+         }
+         x += drawChar(t, f, i, x, y);
+         downCount++;
+      }
+   }
+   x += drawString(t, f, x, y, "]");
+   drawTexturedVertexBuffer(r->FontVertexBuffer);
 
    /*
    // draw ui plots

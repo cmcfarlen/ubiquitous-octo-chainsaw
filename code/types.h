@@ -23,6 +23,10 @@ typedef char s8;
 typedef float f32;
 typedef double f64;
 
+#define EPSILON 1.19e-07
+
+#define arraycount(v) (sizeof(v)/sizeof(v[0]))
+
 #define PI 3.1415927f
 
 #pragma pack(push, 1)
@@ -50,6 +54,14 @@ union vec3
    vec3(vec2& v) : x(v.x), y(v.y), z(0) {}
    vec3(vec2& v, f32 Z) : x(v.x), y(v.y), z(Z) {}
 
+   vec3& operator+=(const vec3& o)
+   {
+      x += o.x;
+      y += o.y;
+      z += o.z;
+      return *this;
+   }
+
    struct {
       f32 x;
       f32 y;
@@ -60,6 +72,7 @@ union vec3
 
 union vec4
 {
+   vec4() {}
    vec4(f32 R, f32 G, f32 B, f32 A) : r(R), g(G), b(B), a(A) {}
    struct {
       f32 x;
@@ -110,8 +123,11 @@ float magnitude(vec3 v)
 vec3 normalize(vec3 v)
 {
    float m = magnitude(v);
-   vec3 r = { v.x / m, v.y / m, v.z / m };
-   return r;
+   if (m > EPSILON) {
+      vec3 r = { v.x / m, v.y / m, v.z / m };
+      return r;
+   }
+   return v;
 }
 
 vec3 mul(vec3 a, float b)
@@ -135,6 +151,23 @@ vec3 operator+(vec3 a, vec3 b)
 vec3 operator*(vec3 a, float b)
 {
    vec3 r = { a.x * b, a.y * b, a.z * b };
+   return r;
+}
+
+vec2 operator*(vec2 a, float b)
+{
+   vec2 r = { a.x * b, a.y * b };
+   return r;
+}
+
+
+vec2 operator-(const vec2&a, const vec2& b)
+{
+   vec2 r;
+
+   r.x = a.x - b.x;
+   r.y = a.y - b.y;
+
    return r;
 }
 

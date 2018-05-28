@@ -3,20 +3,6 @@
 
 #include "game.h"
 
-#pragma pack(push, 1)
-struct textured_vertex
-{
-   vec3 P;
-   vec2 T;
-};
-
-struct colored_vertex
-{
-   vec3 P;
-   vec4 C;
-};
-#pragma pack(pop)
-
 struct plot
 {
    vec4 color;
@@ -33,48 +19,20 @@ struct graph
    rect dim;      // screen
 };
 
-struct colored_vertex_buffer
-{
-   u32 max;
-   u32 vcnt;
-   u32 icnt;
-   colored_vertex* vertices;
-   u32* indices;
-   unsigned int buffers[2];
-   unsigned int vao;
-};
-
-struct textured_vertex_buffer
-{
-   u32 max;
-   u32 vcnt;
-   u32 icnt;
-   textured_vertex* vertices;
-   u32* indices;
-   unsigned int buffers[2];
-   unsigned int vao;
-};
-
-struct screen_font;
-
-typedef struct renderer
-{
-   struct {
+struct screen_viewport {
       int x;
       int y;
       int width;
       int height;
-   } viewport;
+};
 
-   screen_font* TheFont;
-   unsigned int fontProgram;
-   unsigned int FontTexture;
-   textured_vertex_buffer* FontVertexBuffer;
-   colored_vertex_buffer* Colors;
-   unsigned int ColorProgram;
+struct renderer_implementation;
 
-   mat4 worldProj;
-   mat4 uiProj;
+typedef struct renderer
+{
+   screen_viewport viewport;
+
+   renderer_implementation* impl;
 } renderer;
 
 typedef bool (*InitializeRenderer_t)(renderer*);
