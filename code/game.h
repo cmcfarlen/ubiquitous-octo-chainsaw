@@ -18,6 +18,18 @@ enum GameButtons
    BUTTON_MAX_DEFINED
 };
 
+enum MouseButtons
+{
+   MOUSE_BUTTON1 = 1,
+   MOUSE_BUTTON2,
+   MOUSE_BUTTON3,
+   MOUSE_BUTTON4,
+   MOUSE_BUTTON5,
+   MOUSE_BUTTON6,
+
+   MOUSE_BUTTON_MAX
+};
+
 struct game_input
 {
    f32 dt; // time delta to update game by in seconds
@@ -26,6 +38,8 @@ struct game_input
    u8  letters_down[256]; // untranslated keys that are down
    vec2 mouse_p; // mouse position this frame
    vec2 mouse_dp; // mouse change this frame
+
+   u8 mouse_buttons_down[MOUSE_BUTTON_MAX];
 };
 
 struct world_camera

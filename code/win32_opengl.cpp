@@ -559,6 +559,21 @@ mat4 Perspective(f32 fovy, f32 aspect, f32 znear, f32 zfar)
    return r;
 }
 
+mat4 LookAt(vec3 pos, vec3 target, vec3 up)
+{
+   mat4 r;
+   vec3 z = normalize(pos - target);
+   vec3 x = normalize(cross(z, up));
+   vec3 y = normalize(cross(z, x));
+
+   r.m[0] = x.x; r.m[4] = x.y; r.m[ 8] = x.z; r.m[12] = -(x.x * pos.x + x.y * pos.y + x.z * pos.z);
+   r.m[1] = y.x; r.m[5] = y.y; r.m[ 9] = y.z; r.m[13] = -(y.x * pos.x + y.y * pos.y + y.z * pos.z);
+   r.m[2] = z.x; r.m[6] = z.y; r.m[10] = z.z; r.m[14] = -(z.x * pos.x + z.y * pos.y + z.z * pos.z);
+   r.m[3] =   0; r.m[7] =   0; r.m[11] =   0; r.m[15] = 1;
+
+   return r;
+}
+
 mat4 PlotView(f32 DomainFrom, f32 DomainTo, f32 RangeFrom, f32 RangeTo, f32 X, f32 Y, f32 W, f32 H)
 {
    mat4 r;
@@ -571,6 +586,20 @@ mat4 PlotView(f32 DomainFrom, f32 DomainTo, f32 RangeFrom, f32 RangeTo, f32 X, f
    r.m[3] =  0; r.m[7] =  0; r.m[11] = 0; r.m[15] = 1;
 
    return r;
+}
+
+vec3 directionFromPitchYaw(f32 pitch, f32 yaw)
+{
+   pitch *= PI / 180.0f;
+   yaw *= PI / 180.0f;
+
+   vec3 r;
+
+   r.x = cosf(yaw) * cosf(pitch);
+   r.y = sinf(pitch);
+   r.z = sinf(yaw) * cosf(pitch);
+
+   return normalize(r);
 }
 
 colored_vertex_buffer* createColoredVertexBuffer(u32 max)
@@ -961,6 +990,22 @@ f32 drawVec3(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, 
    return X - XBegin;
 }
 
+f32 drawVec4(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, vec4 v)
+{
+   f32 X = XBegin;
+
+   X += drawChar(b, p, '[', X, Y);
+   X += drawFloat(b, p, X, Y, v.x, 3);
+   X += drawChar(b, p, ' ', X, Y);
+   X += drawFloat(b, p, X, Y, v.y, 3);
+   X += drawChar(b, p, ' ', X, Y);
+   X += drawFloat(b, p, X, Y, v.z, 3);
+   X += drawChar(b, p, ' ', X, Y);
+   X += drawFloat(b, p, X, Y, v.w, 3);
+   X += drawChar(b, p, ']', X, Y);
+
+   return X - XBegin;
+}
 f32 drawVec2(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, vec2 v)
 {
    f32 X = XBegin;
@@ -973,7 +1018,6 @@ f32 drawVec2(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, 
 
    return X - XBegin;
 }
-
 
 void free_screen_font(screen_font* f)
 {
@@ -1286,7 +1330,11 @@ void RenderFrame(renderer* rin, game_state* state)
    glEnable(GL_DEPTH);
    glDisable(GL_BLEND);
 
-   mat4 view = rotationY(camera->yaw) * rotationX(camera->pitch) * translationMatrix(camera->p);
+   vec3 dir = directionFromPitchYaw(camera->pitch, camera->yaw);
+
+   mat4 view = LookAt(camera->p, camera->p + dir, vec3(0, 1, 0));
+
+   //mat4 view = rotationY(camera->yaw) * rotationX(camera->pitch) * translationMatrix(camera->p);
 
    glUseProgram(r->WorldProgram);
    bindUniform(r->WorldProgram, "proj", r->worldProj);
@@ -1345,9 +1393,6 @@ void RenderFrame(renderer* rin, game_state* state)
       }
    }
 
-   x += drawString(t, f, x, y, "Debug cps: ");
-   x += drawDouble(t, f, x, y, GlobalDebug->count_per_second, 1);
-
    y += f->size;
    x = 5;
    x += drawString(t, f, x, y, "Camera P: ");
@@ -1357,6 +1402,13 @@ void RenderFrame(renderer* rin, game_state* state)
    x = 5;
    x += drawString(t, f, x, y, "Camera V: ");
    x += drawVec3(t, f, x, y, camera->v);
+
+   y += f->size;
+   x = 5;
+   x += drawString(t, f, x, y, "Camera pitch/yaw: ");
+   x += drawFloat(t, f, x, y, camera->pitch, 2);
+   x += drawString(t, f, x, y, "/");
+   x += drawFloat(t, f, x, y, camera->yaw, 2);
 
    y += f->size;
    x = 5;

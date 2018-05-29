@@ -19,7 +19,7 @@ void initializeWorld(game_world* world)
    world->camera.p = vec3(0, 0, -20);
    world->camera.v = vec3(0, 0, 0);
    world->camera.pitch = 0;
-   world->camera.yaw = 0;
+   world->camera.yaw = 90.0;
 }
 
 bool isDown(game_input* i, int button)
@@ -56,6 +56,8 @@ extern "C" {
       if (letterDown(input, 'R')) {
          state->world.camera.p = vec3(0, 0, -20);
          state->world.camera.v = vec3(0, 0, 0);
+         state->world.camera.pitch = 0.0f;
+         state->world.camera.yaw = 90.0f;
       }
 
 
@@ -68,10 +70,10 @@ extern "C" {
          f += vec3(0, 0, -1);
       }
       if (isDown(input, BUTTON_LEFT)) {
-         f += vec3(1, 0, 0);
+         f += vec3(-1, 0, 0);
       }
       if (isDown(input, BUTTON_RIGHT)) {
-         f += vec3(-1, 0, 0);
+         f += vec3(1, 0, 0);
       }
       if (isDown(input, BUTTON_UP)) {
          f += vec3(0, -1, 0);
@@ -80,14 +82,22 @@ extern "C" {
          f += vec3(0, 1, 0);
       }
 
-      f = normalize(f) * 30.0f;
+      f = normalize(f) * 50.0f;
       accelerateCamera(&state->world.camera, input->dt, f);
 
-      vec2 py = input->mouse_dp * -0.025;
-      state->world.camera.pitch += py.y;
+      if (input->mouse_buttons_down[MOUSE_BUTTON1]) {
+         vec2 py = input->mouse_dp * 0.05;
 
-      state->world.camera.yaw -= py.x;
+         state->world.camera.pitch += py.y;
+         if (state->world.camera.pitch > 89.0f) {
+            state->world.camera.pitch = 89.0f;
+         }
+         if (state->world.camera.pitch < -89.0f) {
+            state->world.camera.pitch = -89.0f;
+         }
 
+         state->world.camera.yaw -= py.x;
+      }
    }
 
    void InitializeGame(game_state* state)

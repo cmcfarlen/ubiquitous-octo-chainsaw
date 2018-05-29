@@ -233,6 +233,36 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
       GlobalInput.letters_down[wParam] = 0;
       break;
    }
+   case WM_LBUTTONDOWN:
+   {
+      GlobalInput.mouse_buttons_down[MOUSE_BUTTON1] = 1;
+      break;
+   }
+   case WM_LBUTTONUP:
+   {
+      GlobalInput.mouse_buttons_down[MOUSE_BUTTON1] = 0;
+      break;
+   }
+   case WM_RBUTTONDOWN:
+   {
+      GlobalInput.mouse_buttons_down[MOUSE_BUTTON2] = 1;
+      break;
+   }
+   case WM_RBUTTONUP:
+   {
+      GlobalInput.mouse_buttons_down[MOUSE_BUTTON2] = 0;
+      break;
+   }
+   case WM_MBUTTONDOWN:
+   {
+      GlobalInput.mouse_buttons_down[MOUSE_BUTTON3] = 1;
+      break;
+   }
+   case WM_MBUTTONUP:
+   {
+      GlobalInput.mouse_buttons_down[MOUSE_BUTTON3] = 0;
+      break;
+   }
 	case WM_PAINT:
 	{
 		PAINTSTRUCT ps;

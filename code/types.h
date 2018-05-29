@@ -142,9 +142,26 @@ vec3 add(vec3 a, vec3 b)
    return r;
 }
 
+vec3 cross(vec3 a, vec3 b)
+{
+   vec3 r;
+
+   r.x = a.y * b.z - a.z * b.y;
+   r.y = a.z * b.x - a.x * b.z;
+   r.z = a.x * b.y - a.y * b.x;
+
+   return r;
+}
+
 vec3 operator+(vec3 a, vec3 b)
 {
    vec3 r = { a.x + b.x, a.y + b.y, a.z + b.z };
+   return r;
+}
+
+vec3 operator-(vec3 a, vec3 b)
+{
+   vec3 r = { a.x - b.x, a.y - b.y, a.z - b.z };
    return r;
 }
 
