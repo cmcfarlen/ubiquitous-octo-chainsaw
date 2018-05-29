@@ -16,10 +16,10 @@ void initializeWorld(game_world* world)
 
    world->isInitialized = true;
 
-   world->camera.p = vec3(0, 0, -20);
+   world->camera.p = vec3(0, 0, 20);
    world->camera.v = vec3(0, 0, 0);
    world->camera.pitch = 0;
-   world->camera.yaw = 90.0;
+   world->camera.yaw = 270.0;
 }
 
 bool isDown(game_input* i, int button)
@@ -54,20 +54,20 @@ extern "C" {
       state->current_input = *input;
 
       if (letterDown(input, 'R')) {
-         state->world.camera.p = vec3(0, 0, -20);
+         state->world.camera.p = vec3(0, 0, 20);
          state->world.camera.v = vec3(0, 0, 0);
          state->world.camera.pitch = 0.0f;
-         state->world.camera.yaw = 90.0f;
+         state->world.camera.yaw = 270.0f;
       }
 
 
       // accelerate camera
       vec3 f = vec3(0, 0, 0);
       if (isDown(input, BUTTON_FORWARD)) {
-         f += vec3(0, 0, 1);
+         f += vec3(0, 0, -1);
       }
       if (isDown(input, BUTTON_BACK)) {
-         f += vec3(0, 0, -1);
+         f += vec3(0, 0, 1);
       }
       if (isDown(input, BUTTON_LEFT)) {
          f += vec3(-1, 0, 0);
@@ -76,19 +76,19 @@ extern "C" {
          f += vec3(1, 0, 0);
       }
       if (isDown(input, BUTTON_UP)) {
-         f += vec3(0, -1, 0);
+         f += vec3(0, 1, 0);
       }
       if (isDown(input, BUTTON_DOWN)) {
-         f += vec3(0, 1, 0);
+         f += vec3(0, -1, 0);
       }
 
       f = normalize(f) * 50.0f;
       accelerateCamera(&state->world.camera, input->dt, f);
 
       if (input->mouse_buttons_down[MOUSE_BUTTON1]) {
-         vec2 py = input->mouse_dp * 0.05;
+         vec2 py = input->mouse_dp * 0.1;
 
-         state->world.camera.pitch += py.y;
+         state->world.camera.pitch -= py.y;
          if (state->world.camera.pitch > 89.0f) {
             state->world.camera.pitch = 89.0f;
          }
@@ -96,7 +96,7 @@ extern "C" {
             state->world.camera.pitch = -89.0f;
          }
 
-         state->world.camera.yaw -= py.x;
+         state->world.camera.yaw += py.x;
       }
    }
 

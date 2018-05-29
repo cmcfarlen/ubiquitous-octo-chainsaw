@@ -563,7 +563,7 @@ mat4 LookAt(vec3 pos, vec3 target, vec3 up)
 {
    mat4 r;
    vec3 z = normalize(pos - target);
-   vec3 x = normalize(cross(z, up));
+   vec3 x = normalize(cross(up, z));
    vec3 y = normalize(cross(z, x));
 
    r.m[0] = x.x; r.m[4] = x.y; r.m[ 8] = x.z; r.m[12] = -(x.x * pos.x + x.y * pos.y + x.z * pos.z);
@@ -638,6 +638,106 @@ colored_vertex_buffer* createColoredVertexBuffer(u32 max)
    glBindVertexArray(0);
 
    return result;
+}
+
+void addColoredCube(colored_vertex_buffer* bin, vec3 origin, vec3 dim, vec4 color[6])
+{
+   u32 v = bin->vcnt;
+   u32 ioff = bin->icnt;
+   colored_vertex* vtx = bin->vertices;
+   u32* idx = bin->indices;
+   f32 hw = 0.5f * dim.x;
+   f32 hh = 0.5f * dim.y;
+   f32 hd = 0.5f * dim.z;
+   f32 ox = origin.x;
+   f32 oy = origin.y;
+   f32 oz = origin.z;
+
+   f32 l = ox - hw;
+   f32 r = ox + hw;
+   f32 f = oz - hd; // far
+   f32 n = oz + hd; // near
+   f32 b = oy - hh;
+   f32 t = oy + hh;
+
+   // 8 vertices
+   // front face
+   vtx[v+0].P = vec3(l, b, n);
+   vtx[v+0].C = color[0];
+   vtx[v+1].P = vec3(r, b, n);
+   vtx[v+1].C = color[0];
+   vtx[v+2].P = vec3(r, t, n);
+   vtx[v+2].C = color[0];
+   vtx[v+3].P = vec3(l, t, n);
+   vtx[v+3].C = color[0];
+   
+   // back face
+   vtx[v+4].P = vec3(r, b, f);
+   vtx[v+4].C = color[1];
+   vtx[v+5].P = vec3(l, b, f);
+   vtx[v+5].C = color[1];
+   vtx[v+6].P = vec3(l, t, f);
+   vtx[v+6].C = color[1];
+   vtx[v+7].P = vec3(r, t, f);
+   vtx[v+7].C = color[1];
+
+   // top face
+   vtx[v+8].P = vec3(l, t, n);
+   vtx[v+8].C = color[2];
+   vtx[v+9].P = vec3(l, t, f);
+   vtx[v+9].C = color[2];
+   vtx[v+10].P = vec3(r, t, f);
+   vtx[v+10].C = color[2];
+   vtx[v+11].P = vec3(r, t, n);
+   vtx[v+11].C = color[2];
+
+   // bottom face
+   vtx[v+12].P = vec3(l, b, n);
+   vtx[v+12].C = color[3];
+   vtx[v+13].P = vec3(r, b, n);
+   vtx[v+13].C = color[3];
+   vtx[v+14].P = vec3(r, b, f);
+   vtx[v+14].C = color[3];
+   vtx[v+15].P = vec3(l, b, f);
+   vtx[v+15].C = color[3];
+
+   // right face
+   vtx[v+16].P = vec3(r, b, n);
+   vtx[v+16].C = color[4];
+   vtx[v+17].P = vec3(r, b, f);
+   vtx[v+17].C = color[4];
+   vtx[v+18].P = vec3(r, t, f);
+   vtx[v+18].C = color[4];
+   vtx[v+19].P = vec3(r, t, n);
+   vtx[v+19].C = color[4];
+
+   // left face
+   vtx[v+20].P = vec3(l, b, n);
+   vtx[v+20].C = color[5];
+   vtx[v+21].P = vec3(l, b, f);
+   vtx[v+21].C = color[5];
+   vtx[v+22].P = vec3(l, t, f);
+   vtx[v+22].C = color[5];
+   vtx[v+23].P = vec3(l, t, n);
+   vtx[v+23].C = color[5];
+   
+   
+
+   static int cube_indices[] = {
+      0, 1, 2, 0, 2, 3,
+      4, 5, 6, 4, 6, 7,
+      8, 9,10, 8,10,11,
+     12,13,14,12,14,15,
+     16,17,18,16,18,19,
+     20,21,22,20,22,23
+   };
+
+   for (int i = 0; i < 36; i++) {
+      idx[ioff + i] = v + cube_indices[i];
+   }
+   
+   bin->vcnt += 24;
+   bin->icnt += 36;
 }
 
 void addColored2DQuad(colored_vertex_buffer* b, vec2 pll, vec2 pur, vec4 color)
@@ -1327,7 +1427,7 @@ void RenderFrame(renderer* rin, game_state* state)
    // world pass
    world_camera* camera = &state->world.camera;
    
-   glEnable(GL_DEPTH);
+   glEnable(GL_DEPTH_TEST);
    glDisable(GL_BLEND);
 
    vec3 dir = directionFromPitchYaw(camera->pitch, camera->yaw);
@@ -1341,8 +1441,18 @@ void RenderFrame(renderer* rin, game_state* state)
    bindUniform(r->WorldProgram, "view", view);
    bindUniform(r->WorldProgram, "model", rotationY(0.1));
 
+   vec4 colors[6] = {
+      vec4(1, 0, 0, 1),
+      vec4(0, 1, 0, 1),
+      vec4(0, 0, 1, 1),
+      vec4(1, 1, 0, 1),
+      vec4(1, 0, 1, 1),
+      vec4(1, 0.5, 0.5, 1),
+   };
 
-   addColored2DQuad(r->Colors, vec2(-10, -10), vec2(10, 10), vec4(0.8f, 0.2f, 0.2f, 1));
+   addColoredCube(r->Colors, vec3(0, 0, 0), vec3(1, 1, 1), colors);
+
+   //addColored2DQuad(r->Colors, vec2(-10, -10), vec2(10, 10), vec4(0.8f, 0.2f, 0.2f, 1));
    drawColoredVertexTriangles(r->Colors);
 
    
@@ -1402,6 +1512,11 @@ void RenderFrame(renderer* rin, game_state* state)
    x = 5;
    x += drawString(t, f, x, y, "Camera V: ");
    x += drawVec3(t, f, x, y, camera->v);
+
+   y += f->size;
+   x = 5;
+   x += drawString(t, f, x, y, "Camera Dir: ");
+   x += drawVec3(t, f, x, y, dir);
 
    y += f->size;
    x = 5;
