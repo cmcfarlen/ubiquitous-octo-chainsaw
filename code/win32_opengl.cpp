@@ -588,20 +588,6 @@ mat4 PlotView(f32 DomainFrom, f32 DomainTo, f32 RangeFrom, f32 RangeTo, f32 X, f
    return r;
 }
 
-vec3 directionFromPitchYaw(f32 pitch, f32 yaw)
-{
-   pitch *= PI / 180.0f;
-   yaw *= PI / 180.0f;
-
-   vec3 r;
-
-   r.x = cosf(yaw) * cosf(pitch);
-   r.y = sinf(pitch);
-   r.z = sinf(yaw) * cosf(pitch);
-
-   return normalize(r);
-}
-
 colored_vertex_buffer* createColoredVertexBuffer(u32 max)
 {
    colored_vertex_buffer* result = (colored_vertex_buffer*)malloc(sizeof(colored_vertex_buffer));

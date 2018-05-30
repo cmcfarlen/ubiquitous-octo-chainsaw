@@ -165,6 +165,12 @@ vec3 operator-(vec3 a, vec3 b)
    return r;
 }
 
+vec3 operator-(const vec3& a)
+{
+   vec3 r = { -a.x, -a.y, -a.z };
+   return r;
+}
+
 vec3 operator*(vec3 a, float b)
 {
    vec3 r = { a.x * b, a.y * b, a.z * b };
@@ -186,6 +192,33 @@ vec2 operator-(const vec2&a, const vec2& b)
    r.y = a.y - b.y;
 
    return r;
+}
+
+vec3 directionFromPitchYaw(f32 pitch, f32 yaw)
+{
+   pitch *= PI / 180.0f;
+   yaw *= PI / 180.0f;
+
+   vec3 r;
+
+   r.x = cosf(yaw) * cosf(pitch);
+   r.y = sinf(pitch);
+   r.z = sinf(yaw) * cosf(pitch);
+
+   return normalize(r);
+}
+
+vec3 directionFromYaw(f32 yaw)
+{
+   yaw *= PI / 180.0f;
+
+   vec3 r;
+
+   r.x = cosf(yaw);
+   r.y = 0;
+   r.z = sinf(yaw);
+
+   return normalize(r);
 }
 
 #endif

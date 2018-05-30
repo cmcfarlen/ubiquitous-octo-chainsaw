@@ -64,16 +64,20 @@ extern "C" {
       // accelerate camera
       vec3 f = vec3(0, 0, 0);
       if (isDown(input, BUTTON_FORWARD)) {
-         f += vec3(0, 0, -1);
+         f += directionFromYaw(state->world.camera.yaw); //vec3(0, 0, -1);
       }
       if (isDown(input, BUTTON_BACK)) {
-         f += vec3(0, 0, 1);
+         f += -directionFromYaw(state->world.camera.yaw); //vec3(0, 0, 1);
       }
       if (isDown(input, BUTTON_LEFT)) {
-         f += vec3(-1, 0, 0);
+         vec3 dir = directionFromYaw(state->world.camera.yaw);
+         vec3 right = cross(dir, vec3(0, 1, 0));
+         f += -right;
       }
       if (isDown(input, BUTTON_RIGHT)) {
-         f += vec3(1, 0, 0);
+         vec3 dir = directionFromYaw(state->world.camera.yaw);
+         vec3 right = cross(dir, vec3(0, 1, 0));
+         f += right;
       }
       if (isDown(input, BUTTON_UP)) {
          f += vec3(0, 1, 0);
