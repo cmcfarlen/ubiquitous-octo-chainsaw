@@ -5,6 +5,7 @@
 #include "memory.h"
 #include "debug.h"
 #include "platform.h"
+#include "vector.h"
 
 enum GameButtons
 {
