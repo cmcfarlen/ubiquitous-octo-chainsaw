@@ -2,17 +2,10 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#include <assert.h>
 #include <stdlib.h>
 
-#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype.h"
-
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#define STBI_MSC_SECURE_CRT
-#include "stb_image_write.h"
 
 // win32 has to manage its own gl function loading
 #include "glcorearb.h"
@@ -308,6 +301,7 @@ void LoadGL()
 #include "renderer.h"
 #include "vector.h"
 #include "matrix.h"
+#include "font.h"
 
 // renderer implementation
 //
@@ -354,7 +348,6 @@ struct drawable_cube
    vec3 p;
 };
 
-struct screen_font;
 struct renderer_implementation
 {
    screen_font* TheFont;
@@ -380,67 +373,6 @@ void assertGL()
 {
    GLenum err = glGetError();
    assert(err == GL_NO_ERROR);
-}
-
-
-mat4 Ortho2D(f32 left, f32 right, f32 top, f32 bottom, f32 n, f32 f)
-{
-   f32 rml = right - left;
-   f32 tmb = top - bottom;
-   f32 fmn = f - n;
-   mat4 r;
-
-   r.m[0] = 2.0f/rml; r.m[4] =        0; r.m[ 8] =      0; r.m[12] = -(right + left)/rml;
-   r.m[1] =        0; r.m[5] = 2.0f/tmb; r.m[ 9] =      0; r.m[13] = -(top + bottom)/tmb;
-   r.m[2] =        0; r.m[6] =        0; r.m[10] = -2/fmn; r.m[14] =          -(f+n)/fmn;
-   r.m[3] =        0; r.m[7] =        0; r.m[11] =      0; r.m[15] =                   1;
-
-   return r;
-}
-
-// https://unspecified.wordpress.com/2012/06/21/calculating-the-gluperspective-matrix-and-other-opengl-matrix-maths/
-mat4 Perspective(f32 fovy, f32 aspect, f32 znear, f32 zfar)
-{
-   mat4 r;
-   f32 f = 1.0f / tanf(fovy * 0.5f);
-   f32 m10 = (zfar+znear)/(znear-zfar);
-   f32 m14 = (2*zfar*znear)/(znear-zfar);
-
-   r.m[0] = f/aspect; r.m[4] = 0; r.m[ 8] =   0; r.m[12] = 0;
-   r.m[1] =        0; r.m[5] = f; r.m[ 9] =   0; r.m[13] = 0;
-   r.m[2] =        0; r.m[6] = 0; r.m[10] = m10; r.m[14] = m14;
-   r.m[3] =        0; r.m[7] = 0; r.m[11] =  -1; r.m[15] = 0;
-
-   return r;
-}
-
-mat4 LookAt(vec3 pos, vec3 target, vec3 up)
-{
-   mat4 r;
-   vec3 z = normalize(pos - target);
-   vec3 x = normalize(cross(up, z));
-   vec3 y = normalize(cross(z, x));
-
-   r.m[0] = x.x; r.m[4] = x.y; r.m[ 8] = x.z; r.m[12] = -(x.x * pos.x + x.y * pos.y + x.z * pos.z);
-   r.m[1] = y.x; r.m[5] = y.y; r.m[ 9] = y.z; r.m[13] = -(y.x * pos.x + y.y * pos.y + y.z * pos.z);
-   r.m[2] = z.x; r.m[6] = z.y; r.m[10] = z.z; r.m[14] = -(z.x * pos.x + z.y * pos.y + z.z * pos.z);
-   r.m[3] =   0; r.m[7] =   0; r.m[11] =   0; r.m[15] = 1;
-
-   return r;
-}
-
-mat4 PlotView(f32 DomainFrom, f32 DomainTo, f32 RangeFrom, f32 RangeTo, f32 X, f32 Y, f32 W, f32 H)
-{
-   mat4 r;
-   f32 xs = W / (DomainTo - DomainFrom);
-   f32 ys = H / (RangeTo - RangeFrom);
-
-   r.m[0] = xs; r.m[4] =  0; r.m[ 8] = 0; r.m[12] = X - (xs * DomainFrom);
-   r.m[1] =  0; r.m[5] = ys; r.m[ 9] = 0; r.m[13] = Y - (ys * RangeFrom);
-   r.m[2] =  0; r.m[6] =  0; r.m[10] = 1; r.m[14] = 0;
-   r.m[3] =  0; r.m[7] =  0; r.m[11] = 0; r.m[15] = 1;
-
-   return r;
 }
 
 colored_vertex_buffer* createColoredVertexBuffer(u32 max)
@@ -714,7 +646,6 @@ void drawTexturedVertexBuffer(textured_vertex_buffer* tvb)
    tvb->icnt = 0;
 }
 
-   //addTextured2DQuad(b, vec2(q.x0, q.y0), vec2(q.x1, q.y1), vec2(q.s0, q.t0), vec2(q.s1, q.t1));
 void addTextured2DQuad(textured_vertex_buffer* b, vec2 pll, vec2 pur, vec2 tll, vec2 tur)
 {
    if ((b->vcnt + 6) > b->max) {
@@ -745,226 +676,6 @@ void addTextured2DQuad(textured_vertex_buffer* b, vec2 pll, vec2 pur, vec2 tll, 
    b->icnt += 6;
 }
 
-struct screen_font_size
-{
-   f32 size;
-   int firstChar;
-   int lastChar;
-   int width;
-   int height;
-   stbtt_bakedchar cdata[96];
-};
-
-
-struct screen_font
-{
-   const char* fontName;
-   int numSizes;
-   u8* textureData;
-   screen_font_size sizes[5];
-
-};
-
-screen_font* createFont(int Width, int Height, const char* fontName)
-{
-   u32 ttf_size;
-   u8*ttf = Platform.slurp(fontName, &ttf_size);
-   u8* img = (u8*)malloc(Width*Height); //Platform.allocateMemory(Width*Height);
-
-   screen_font* result = (screen_font*)malloc(sizeof(screen_font));
-
-   f32 sizes[] = {12.0, 16.0, 18.0, 22.0,  32.0 };
-
-   result->fontName = fontName;
-   result->numSizes = sizeof(sizes)/sizeof(sizes[0]);
-   result->textureData = img;
-
-
-   u32 rows = 0;
-   for (int i = 0; i < result->numSizes; i++) {
-      screen_font_size* fs = result->sizes + i;
-      f32 sz = sizes[i];
-
-      fs->size = sz;
-      fs->firstChar = 32;
-      fs->lastChar = 96;
-      fs->width = Width;
-      fs->height = Height;
-
-      u32 r = stbtt_BakeFontBitmap(ttf, 0, sz, img + Width * rows, Width, Height - rows, 32, 96, fs->cdata);
-
-      for (int idx = 0; idx < 96; idx++) {
-         fs->cdata[idx].y0 += (u16)rows;
-         fs->cdata[idx].y1 += (u16)rows;
-      }
-
-      rows += r;
-   }
-
-   stbi_write_bmp("stbtt.bmp", Width, Height, 1, img);
-
-   return result;
-}
-
-screen_font_size* findFontSize(screen_font* font, int size)
-{
-   for (int i = 0; i < font->numSizes; i++) {
-      if (font->sizes[i].size > size) {
-         return font->sizes + i;
-      }
-   }
-
-   // return first if not found
-   return font->sizes;
-}
-
-f32 drawChar(textured_vertex_buffer* b, screen_font_size* s, int c, f32 X, f32 Y)
-{
-   f32 x = X;
-   f32 y = Y;
-   stbtt_aligned_quad q;
-
-   stbtt_GetBakedQuad(s->cdata, s->width, s->height, c - s->firstChar, &x, &y, &q, 1);
-
-   addTextured2DQuad(b, vec2(q.x0, q.y0), vec2(q.x1, q.y1), vec2(q.s0, q.t0), vec2(q.s1, q.t1));
-
-   return x - X;
-}
-
-f32 drawString(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, const char* text)
-{
-   f32 X = XBegin;
-   for (const char* c = text; *c; c++) {
-      if (*c == ' ') {
-         X += 10;
-      } else {
-         X += drawChar(b, p, *c, X, Y);
-      }
-   }
-
-   return X - XBegin;
-}
-
-f32 drawInt(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, s64 number, unsigned int padding = 1)
-{
-   f32 X = XBegin;
-
-   char buffer[32] = "0000000000";
-   if (padding > 10) {
-      padding = 10;
-   }
-
-   buffer[padding] = 0;
-
-   if (number < 0) {
-      X += drawChar(b, p, '-', X, Y);
-      number = -number;
-   }
-
-   unsigned int idx = 0;
-   while (number > 0) {
-      buffer[idx++] = (number % 10) + '0';
-      number /= 10;
-   }
-
-   padding = padding < idx ? idx : padding;
-
-   for (unsigned int i = 0; i < padding; i++) {
-      X += drawChar(b, p, buffer[padding - i - 1], X, Y);
-   }
-
-   return X - XBegin;
-}
-
-f32 drawFloat(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, f32 number, int precision)
-{
-   f32 X = XBegin;
-
-   bool neg = number < 0 ? 1 : 0;
-
-   number = fabsf(number);
-
-   if (number < 2 * EPSILON) {
-      number = 0.0f;
-      neg = 0;
-   }
-
-   int whole = (int)floorf(number);
-   int fraction = (int)roundf((number - whole) * powf(10.0f, (f32)precision));
-
-   if (neg) {
-      X += drawChar(b, p, '-', X, Y);
-   }
-
-   X += drawInt(b, p, X, Y, whole);
-   X += drawString(b, p, X, Y, ".");
-   X += drawInt(b, p, X, Y, fraction, precision);
-
-   return X - XBegin;
-}
-
-f32 drawDouble(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, f64 number, int precision)
-{
-   f32 X = XBegin;
-   s64 whole = (s64)floor(number);
-   s64 fraction = (s64)round((number - whole) * powf(10.0f, (f32)precision));
-
-   X += drawInt(b, p, X, Y, whole);
-   X += drawString(b, p, X, Y, ".");
-   X += drawInt(b, p, X, Y, fraction, precision);
-
-   return X - XBegin;
-}
-
-f32 drawVec3(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, vec3 v)
-{
-   f32 X = XBegin;
-
-   X += drawChar(b, p, '[', X, Y);
-   X += drawFloat(b, p, X, Y, v.x, 3);
-   X += drawChar(b, p, ' ', X, Y);
-   X += drawFloat(b, p, X, Y, v.y, 3);
-   X += drawChar(b, p, ' ', X, Y);
-   X += drawFloat(b, p, X, Y, v.z, 3);
-   X += drawChar(b, p, ']', X, Y);
-
-   return X - XBegin;
-}
-
-f32 drawVec4(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, vec4 v)
-{
-   f32 X = XBegin;
-
-   X += drawChar(b, p, '[', X, Y);
-   X += drawFloat(b, p, X, Y, v.x, 3);
-   X += drawChar(b, p, ' ', X, Y);
-   X += drawFloat(b, p, X, Y, v.y, 3);
-   X += drawChar(b, p, ' ', X, Y);
-   X += drawFloat(b, p, X, Y, v.z, 3);
-   X += drawChar(b, p, ' ', X, Y);
-   X += drawFloat(b, p, X, Y, v.w, 3);
-   X += drawChar(b, p, ']', X, Y);
-
-   return X - XBegin;
-}
-f32 drawVec2(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, vec2 v)
-{
-   f32 X = XBegin;
-
-   X += drawChar(b, p, '[', X, Y);
-   X += drawFloat(b, p, X, Y, v.x, 3);
-   X += drawChar(b, p, ' ', X, Y);
-   X += drawFloat(b, p, X, Y, v.y, 3);
-   X += drawChar(b, p, ']', X, Y);
-
-   return X - XBegin;
-}
-
-void free_screen_font(screen_font* f)
-{
-   free(f->textureData);
-   free(f);
-}
 
 GLuint compileShader(const char* vertexName, const char* fragmentName)
 {
@@ -1110,6 +821,8 @@ GLuint createTexture(const char* resource)
 
    return texture;
 }
+
+#include "font.cpp"
 
 // dll api for win32 renderer management
 extern "C" {

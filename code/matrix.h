@@ -157,4 +157,64 @@ mat4 rotationZ(f32 radians)
    return r;
 }
 
+mat4 Ortho2D(f32 left, f32 right, f32 top, f32 bottom, f32 n, f32 f)
+{
+   f32 rml = right - left;
+   f32 tmb = top - bottom;
+   f32 fmn = f - n;
+   mat4 r;
+
+   r.m[0] = 2.0f/rml; r.m[4] =        0; r.m[ 8] =      0; r.m[12] = -(right + left)/rml;
+   r.m[1] =        0; r.m[5] = 2.0f/tmb; r.m[ 9] =      0; r.m[13] = -(top + bottom)/tmb;
+   r.m[2] =        0; r.m[6] =        0; r.m[10] = -2/fmn; r.m[14] =          -(f+n)/fmn;
+   r.m[3] =        0; r.m[7] =        0; r.m[11] =      0; r.m[15] =                   1;
+
+   return r;
+}
+
+// https://unspecified.wordpress.com/2012/06/21/calculating-the-gluperspective-matrix-and-other-opengl-matrix-maths/
+mat4 Perspective(f32 fovy, f32 aspect, f32 znear, f32 zfar)
+{
+   mat4 r;
+   f32 f = 1.0f / tanf(fovy * 0.5f);
+   f32 m10 = (zfar+znear)/(znear-zfar);
+   f32 m14 = (2*zfar*znear)/(znear-zfar);
+
+   r.m[0] = f/aspect; r.m[4] = 0; r.m[ 8] =   0; r.m[12] = 0;
+   r.m[1] =        0; r.m[5] = f; r.m[ 9] =   0; r.m[13] = 0;
+   r.m[2] =        0; r.m[6] = 0; r.m[10] = m10; r.m[14] = m14;
+   r.m[3] =        0; r.m[7] = 0; r.m[11] =  -1; r.m[15] = 0;
+
+   return r;
+}
+
+mat4 LookAt(vec3 pos, vec3 target, vec3 up)
+{
+   mat4 r;
+   vec3 z = normalize(pos - target);
+   vec3 x = normalize(cross(up, z));
+   vec3 y = normalize(cross(z, x));
+
+   r.m[0] = x.x; r.m[4] = x.y; r.m[ 8] = x.z; r.m[12] = -(x.x * pos.x + x.y * pos.y + x.z * pos.z);
+   r.m[1] = y.x; r.m[5] = y.y; r.m[ 9] = y.z; r.m[13] = -(y.x * pos.x + y.y * pos.y + y.z * pos.z);
+   r.m[2] = z.x; r.m[6] = z.y; r.m[10] = z.z; r.m[14] = -(z.x * pos.x + z.y * pos.y + z.z * pos.z);
+   r.m[3] =   0; r.m[7] =   0; r.m[11] =   0; r.m[15] = 1;
+
+   return r;
+}
+
+mat4 PlotView(f32 DomainFrom, f32 DomainTo, f32 RangeFrom, f32 RangeTo, f32 X, f32 Y, f32 W, f32 H)
+{
+   mat4 r;
+   f32 xs = W / (DomainTo - DomainFrom);
+   f32 ys = H / (RangeTo - RangeFrom);
+
+   r.m[0] = xs; r.m[4] =  0; r.m[ 8] = 0; r.m[12] = X - (xs * DomainFrom);
+   r.m[1] =  0; r.m[5] = ys; r.m[ 9] = 0; r.m[13] = Y - (ys * RangeFrom);
+   r.m[2] =  0; r.m[6] =  0; r.m[10] = 1; r.m[14] = 0;
+   r.m[3] =  0; r.m[7] =  0; r.m[11] = 0; r.m[15] = 1;
+
+   return r;
+}
+
 #endif
