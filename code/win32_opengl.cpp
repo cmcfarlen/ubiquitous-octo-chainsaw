@@ -993,7 +993,7 @@ void RenderFrame(renderer* rin, game_state* state)
    glUseProgram(r->WorldProgram);
    bindUniform(r->WorldProgram, "proj", r->worldProj);
    bindUniform(r->WorldProgram, "view", view);
-   bindUniform(r->WorldProgram, "model", rotationY(0.1));
+   bindUniform(r->WorldProgram, "model", rotationY(state->angle));
 
    vec4 colors[6] = {
       vec4(1, 0, 0, 1),
@@ -1113,6 +1113,23 @@ void RenderFrame(renderer* rin, game_state* state)
             x += drawChar(t, f, ',', x, y);
          }
          x += drawChar(t, f, i, x, y);
+         downCount++;
+      }
+   }
+   x += drawString(t, f, x, y, "]");
+   drawTexturedVertexBuffer(r->FontVertexBuffer);
+
+   y += f->size;
+   x = 5;
+   x += drawString(t, f, x, y, "Clicked: [");
+   downCount = 0;
+   for (int i = 0; i < MOUSE_BUTTON_MAX; i++)
+   {
+      if (state->current_input.mouse_buttons_click[i]) {
+         if (downCount) {
+            x += drawChar(t, f, ',', x, y);
+         }
+         x += drawChar(t, f, '0' + i, x, y);
          downCount++;
       }
    }

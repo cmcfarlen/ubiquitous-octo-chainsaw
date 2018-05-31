@@ -235,11 +235,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
    }
    case WM_LBUTTONDOWN:
    {
+      int xPos = lParam & 0xffff;
+      int yPos = (lParam >> 16) & 0xffff;
+
       GlobalInput.mouse_buttons_down[MOUSE_BUTTON1] = 1;
+      GlobalInput.mouse_down_p = vec2((f32)xPos, (f32)yPos);
+
       break;
    }
    case WM_LBUTTONUP:
    {
+      int xPos = lParam & 0xffff;
+      int yPos = (lParam >> 16) & 0xffff;
+
+      vec2 mp = vec2((f32)xPos, (f32)yPos);
+
+      if (mp == GlobalInput.mouse_down_p) {
+         GlobalInput.mouse_buttons_click[MOUSE_BUTTON1] = 1;
+      }
+
       GlobalInput.mouse_buttons_down[MOUSE_BUTTON1] = 0;
       break;
    }
@@ -475,6 +489,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
          GameAPI.UpdateGameState(GameState, &GlobalInput);
 
          RenderAPI.RenderFrame(&Renderer, GameState);
+
+         for (int i = 0; i < MOUSE_BUTTON_MAX; i++) {
+            GlobalInput.mouse_buttons_click[i] = 0;
+         }
 
       }
       SwapBuffers(OpenGLContext.dc);

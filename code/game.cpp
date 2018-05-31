@@ -61,6 +61,16 @@ extern "C" {
       }
 
 
+      if (letterDown(input, 'N')) {
+         state->rate += 0.1;
+      }
+
+      if (letterDown(input, 'M')) {
+         state->rate -= 0.1;
+      }
+
+      state->angle += state->rate * input->dt;
+
       // accelerate camera
       vec3 f = vec3(0, 0, 0);
       if (isDown(input, BUTTON_FORWARD)) {

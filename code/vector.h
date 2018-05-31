@@ -163,6 +163,11 @@ vec2 operator-(const vec2&a, const vec2& b)
    return r;
 }
 
+bool operator==(const vec2& a , const vec2 & b)
+{
+   return a.x == b.x && a.y == b.y;
+}
+
 vec3 directionFromPitchYaw(f32 pitch, f32 yaw)
 {
    pitch *= PI / 180.0f;

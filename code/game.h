@@ -39,8 +39,11 @@ struct game_input
    u8  letters_down[256]; // untranslated keys that are down
    vec2 mouse_p; // mouse position this frame
    vec2 mouse_dp; // mouse change this frame
+   vec2 mouse_down_p; // position when mouse button went down
+
 
    u8 mouse_buttons_down[MOUSE_BUTTON_MAX];
+   u8 mouse_buttons_click[MOUSE_BUTTON_MAX];
 };
 
 struct world_camera
@@ -62,6 +65,8 @@ struct game_state
    platform_api Platform;
    debug_system* DebugSystem;
 
+   f32 rate;
+   f32 angle;
 
    game_input current_input;
    game_world world;

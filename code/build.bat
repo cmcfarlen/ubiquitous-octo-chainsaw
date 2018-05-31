@@ -1,6 +1,6 @@
 @echo off
 
-set CFLAGS=-O2 -nologo -fp:fast -fp:except- -Gm- -GR- -EHa- -Zo -Oi -WX -W4 -wd4201 -wd4100 -wd4189 -wd4505 -wd4127 -FC -Z7 -GS- -Gs9999999
+set CFLAGS=-Od -nologo -fp:fast -fp:except- -Gm- -GR- -EHa- -Zo -Oi -WX -W4 -wd4201 -wd4100 -wd4189 -wd4505 -wd4127 -FC -Z7 -GS- -Gs9999999
 set LDFLAGS=-incremental:no -opt:ref user32.lib gdi32.lib winmm.lib kernel32.lib
 
 set RENDER_EXPORTS=/EXPORT:Win32SetupRenderContext /EXPORT:Win32SelectRenderContext /EXPORT:InitializeRenderer /EXPORT:ResizeWindow /EXPORT:RenderFrame
