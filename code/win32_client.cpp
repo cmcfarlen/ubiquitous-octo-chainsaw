@@ -338,12 +338,14 @@ void loadRenderAPI(renderer_api* api, HMODULE dll)
    api->InitializeRenderer = (InitializeRenderer_t)GetProcAddress(dll, "InitializeRenderer");
    api->ResizeWindow = (ResizeWindow_t)GetProcAddress(dll, "ResizeWindow");
    api->RenderFrame = (RenderFrame_t)GetProcAddress(dll, "RenderFrame");
+   initializeDebugSystem(GlobalDebug);
 }
 
 void loadGameAPI(game_api* api, HMODULE dll)
 {
    api->UpdateGameState = (UpdateGameState_t)GetProcAddress(dll, "UpdateGameState");
    api->InitializeGame = (InitializeGame_t)GetProcAddress(dll, "InitializeGame");
+   initializeDebugSystem(GlobalDebug);
 }
 
 double measure_debug_ticks()
@@ -395,9 +397,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
    freeRegion(test_region);
 
+   memory_region* permanentRegion = createMemoryRegion();
+
+   GlobalDebug = (debug_system*)allocateFromRegion(permanentRegion, sizeof(debug_system));
+   initializeDebugSystem(GlobalDebug);
+
    dll_watch renderWatch = {"win32_opengl.dll", "win32_opengl_copy.dll", "render_lock.tmp", 0, 0};
    dll_watch gameWatch = {"game.dll", "game_copy.dll", "lock.tmp", 0, 0};
-   memory_region* permanentRegion = createMemoryRegion();
 
 	// load game code first so the window can be initialized
    loadDll(&gameWatch);
@@ -405,10 +411,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
    GameState = (game_state*)allocateFromRegion(permanentRegion, sizeof(game_state));
    GameState->Platform = Platform;
-
-   GlobalDebug = (debug_system*)allocateFromRegion(permanentRegion, sizeof(debug_system));
-   initializeDebugSystem(GlobalDebug);
-
 
    double dtps = 0;
    for (int i = 0; i < 10; i++) {
