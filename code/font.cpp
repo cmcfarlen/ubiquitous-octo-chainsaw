@@ -57,7 +57,7 @@ screen_font_size* findFontSize(screen_font* font, int size)
    return font->sizes;
 }
 
-f32 drawChar(textured_vertex_buffer* b, screen_font_size* s, int c, f32 X, f32 Y)
+f32 drawChar(vertex_buffer* b, screen_font_size* s, int c, f32 X, f32 Y)
 {
    f32 x = X;
    f32 y = Y;
@@ -70,7 +70,7 @@ f32 drawChar(textured_vertex_buffer* b, screen_font_size* s, int c, f32 X, f32 Y
    return x - X;
 }
 
-f32 drawString(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, const char* text)
+f32 drawString(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, const char* text)
 {
    f32 X = XBegin;
    for (const char* c = text; *c; c++) {
@@ -84,7 +84,7 @@ f32 drawString(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y
    return X - XBegin;
 }
 
-f32 drawInt(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, s64 number, unsigned int padding)
+f32 drawInt(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, s64 number, unsigned int padding)
 {
    f32 X = XBegin;
 
@@ -115,7 +115,7 @@ f32 drawInt(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, s
    return X - XBegin;
 }
 
-f32 drawFloat(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, f32 number, int precision)
+f32 drawFloat(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, f32 number, int precision)
 {
    f32 X = XBegin;
 
@@ -142,7 +142,7 @@ f32 drawFloat(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y,
    return X - XBegin;
 }
 
-f32 drawDouble(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, f64 number, int precision)
+f32 drawDouble(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, f64 number, int precision)
 {
    f32 X = XBegin;
    s64 whole = (s64)floor(number);
@@ -155,7 +155,7 @@ f32 drawDouble(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y
    return X - XBegin;
 }
 
-f32 drawVec3(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, vec3 v)
+f32 drawVec3(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, vec3 v)
 {
    f32 X = XBegin;
 
@@ -170,7 +170,7 @@ f32 drawVec3(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, 
    return X - XBegin;
 }
 
-f32 drawVec4(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, vec4 v)
+f32 drawVec4(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, vec4 v)
 {
    f32 X = XBegin;
 
@@ -187,7 +187,7 @@ f32 drawVec4(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, 
    return X - XBegin;
 }
 
-f32 drawVec2(textured_vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, vec2 v)
+f32 drawVec2(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, vec2 v)
 {
    f32 X = XBegin;
 

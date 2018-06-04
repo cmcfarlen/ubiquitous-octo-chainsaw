@@ -54,10 +54,20 @@ struct world_camera
    f32 pitch;
 };
 
+struct cube
+{
+   vec3 p;
+   vec3 dim;
+
+   f32 angle;
+};
+
 struct game_world
 {
    bool isInitialized;
    world_camera camera;
+
+   cube cubes[10];
 };
 
 struct game_state

@@ -307,45 +307,23 @@ void LoadGL()
 //
 
 #pragma pack(push, 1)
-struct textured_vertex
+struct vertex
 {
    vec3 P;
    vec2 T;
-};
-
-struct colored_vertex
-{
-   vec3 P;
    vec4 C;
 };
 #pragma pack(pop)
 
-struct colored_vertex_buffer
+struct vertex_buffer
 {
    u32 max;
    u32 vcnt;
    u32 icnt;
-   colored_vertex* vertices;
+   vertex* vertices;
    u32* indices;
    unsigned int buffers[2];
    unsigned int vao;
-};
-
-struct textured_vertex_buffer
-{
-   u32 max;
-   u32 vcnt;
-   u32 icnt;
-   textured_vertex* vertices;
-   u32* indices;
-   unsigned int buffers[2];
-   unsigned int vao;
-};
-
-struct drawable_cube
-{
-   vec4 color;
-   vec3 p;
 };
 
 struct renderer_implementation
@@ -353,13 +331,11 @@ struct renderer_implementation
    screen_font* TheFont;
    unsigned int fontProgram;
    unsigned int FontTexture;
-   textured_vertex_buffer* FontVertexBuffer;
-   colored_vertex_buffer* Colors;
+   vertex_buffer* FontVertexBuffer;
+   vertex_buffer* Colors;
    unsigned int ColorProgram;
 
    unsigned int WorldProgram;
-   colored_vertex_buffer* CubeVertices;
-   drawable_cube cubes[10];
 
    mat4 worldProj;
    mat4 uiProj;
@@ -367,7 +343,6 @@ struct renderer_implementation
 
 platform_api Platform;
 debug_system* GlobalDebug;
-renderer_implementation Renderer;
 
 void assertGL()
 {
@@ -376,10 +351,10 @@ void assertGL()
    //assert(err == GL_NO_ERROR);
 }
 
-colored_vertex_buffer* createColoredVertexBuffer(u32 max)
+vertex_buffer* createVertexBuffer(u32 max)
 {
-   colored_vertex_buffer* result = (colored_vertex_buffer*)malloc(sizeof(colored_vertex_buffer));
-   colored_vertex* vertices = (colored_vertex*)malloc(max * sizeof(colored_vertex));
+   vertex_buffer* result = (vertex_buffer*)malloc(sizeof(vertex_buffer));
+   vertex* vertices = (vertex*)malloc(max * sizeof(vertex));
    u32* indices = (u32*)malloc(max * 2 * sizeof(u32));
 
    result->max = max;
@@ -394,26 +369,40 @@ colored_vertex_buffer* createColoredVertexBuffer(u32 max)
    glBindVertexArray(result->vao);
 
    glBindBuffer(GL_ARRAY_BUFFER, result->buffers[0]);
-   glBufferData(GL_ARRAY_BUFFER, max * sizeof(colored_vertex), 0, GL_STREAM_DRAW);
+   glBufferData(GL_ARRAY_BUFFER, max * sizeof(vertex), 0, GL_STREAM_DRAW);
 
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, result->buffers[1]);
    glBufferData(GL_ELEMENT_ARRAY_BUFFER, max * 2 * sizeof(u32), 0, GL_STREAM_DRAW);
 
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), NULL);
+   // position
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(f32), NULL);
    glEnableVertexAttribArray(0);
-   glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), (void*)(3*sizeof(f32)));
+   // texture
+   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 9 * sizeof(f32), (void*)(3*sizeof(f32)));
    glEnableVertexAttribArray(1);
+   // color
+   glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 9 * sizeof(f32), (void*)(5*sizeof(f32)));
+   glEnableVertexAttribArray(2);
 
    glBindVertexArray(0);
 
    return result;
 }
 
-void addColoredCube(colored_vertex_buffer* bin, vec3 origin, vec3 dim, vec4 color[6])
+void freeVertexBuffer(vertex_buffer* tvb)
+{
+   glDeleteBuffers(2, tvb->buffers);
+   glDeleteVertexArrays(1, &tvb->vao);
+   free(tvb->indices);
+   free(tvb->vertices);
+   free(tvb);
+}
+
+void addColoredCube(vertex_buffer* bin, vec3 origin, vec3 dim, vec4 color[6])
 {
    u32 v = bin->vcnt;
    u32 ioff = bin->icnt;
-   colored_vertex* vtx = bin->vertices;
+   vertex* vtx = bin->vertices;
    u32* idx = bin->indices;
    f32 hw = 0.5f * dim.x;
    f32 hh = 0.5f * dim.y;
@@ -439,7 +428,7 @@ void addColoredCube(colored_vertex_buffer* bin, vec3 origin, vec3 dim, vec4 colo
    vtx[v+2].C = color[0];
    vtx[v+3].P = vec3(l, t, n);
    vtx[v+3].C = color[0];
-   
+
    // back face
    vtx[v+4].P = vec3(r, b, f);
    vtx[v+4].C = color[1];
@@ -489,8 +478,6 @@ void addColoredCube(colored_vertex_buffer* bin, vec3 origin, vec3 dim, vec4 colo
    vtx[v+22].C = color[5];
    vtx[v+23].P = vec3(l, t, n);
    vtx[v+23].C = color[5];
-   
-   
 
    static int cube_indices[] = {
       0, 1, 2, 0, 2, 3,
@@ -504,12 +491,12 @@ void addColoredCube(colored_vertex_buffer* bin, vec3 origin, vec3 dim, vec4 colo
    for (int i = 0; i < 36; i++) {
       idx[ioff + i] = v + cube_indices[i];
    }
-   
+
    bin->vcnt += 24;
    bin->icnt += 36;
 }
 
-void addColored2DQuad(colored_vertex_buffer* b, vec2 pll, vec2 pur, vec4 color)
+void addColored2DQuad(vertex_buffer* b, vec2 pll, vec2 pur, vec4 color)
 {
    u32 v = b->vcnt;
    u32 i = b->icnt;
@@ -535,28 +522,51 @@ void addColored2DQuad(colored_vertex_buffer* b, vec2 pll, vec2 pur, vec4 color)
    b->icnt += 6;
 }
 
-void addColoredVertex(colored_vertex_buffer* b, vec3 p, vec4 c)
+void addColoredVertex(vertex_buffer* b, vec3 p, vec4 c)
 {
    u32 i = b->vcnt++;
    b->vertices[i].P = p;
    b->vertices[i].C = c;
 }
 
-void freeColoredVertexBuffer(colored_vertex_buffer* tvb)
-{
-   glDeleteBuffers(2, tvb->buffers);
-   glDeleteVertexArrays(1, &tvb->vao);
-   free(tvb->indices);
-   free(tvb->vertices);
-   free(tvb);
-}
-
-void drawColoredVertexTriangles(colored_vertex_buffer* tvb)
+void drawBufferElements(vertex_buffer* tvb, GLenum prim)
 {
    glBindVertexArray(tvb->vao);
 
    glBindBuffer(GL_ARRAY_BUFFER, tvb->buffers[0]);
-   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(colored_vertex), tvb->vertices);
+   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(vertex), tvb->vertices);
+
+   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tvb->buffers[1]);
+   glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, tvb->icnt * sizeof(u32), tvb->indices);
+
+   glDrawElements(prim, tvb->icnt, GL_UNSIGNED_INT, 0);
+
+   tvb->vcnt = 0;
+   tvb->icnt = 0;
+}
+
+void drawBuffer(vertex_buffer* tvb, GLenum prim)
+{
+   glBindVertexArray(tvb->vao);
+
+   glBindBuffer(GL_ARRAY_BUFFER, tvb->buffers[0]);
+   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(vertex), tvb->vertices);
+   assertGL();
+
+   glDrawArrays(prim, 0, tvb->vcnt);
+   assertGL();
+
+   tvb->vcnt = 0;
+   tvb->icnt = 0;
+}
+
+#if 0
+void drawColoredVertexTriangles(vertex_buffer* tvb)
+{
+   glBindVertexArray(tvb->vao);
+
+   glBindBuffer(GL_ARRAY_BUFFER, tvb->buffers[0]);
+   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(vertex), tvb->vertices);
 
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tvb->buffers[1]);
    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, tvb->icnt * sizeof(u32), tvb->indices);
@@ -567,12 +577,12 @@ void drawColoredVertexTriangles(colored_vertex_buffer* tvb)
    tvb->icnt = 0;
 }
 
-void drawColoredVertexLineStrip(colored_vertex_buffer* tvb)
+void drawColoredVertexLineStrip(vertex_buffer* tvb)
 {
    glBindVertexArray(tvb->vao);
 
    glBindBuffer(GL_ARRAY_BUFFER, tvb->buffers[0]);
-   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(colored_vertex), tvb->vertices);
+   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(vertex), tvb->vertices);
    assertGL();
 
    glDrawArrays(GL_LINE_STRIP, 0, tvb->vcnt);
@@ -582,55 +592,13 @@ void drawColoredVertexLineStrip(colored_vertex_buffer* tvb)
    tvb->icnt = 0;
 }
 
-textured_vertex_buffer* createTexturedVertexBuffer(u32 max)
-{
-   textured_vertex_buffer* result = (textured_vertex_buffer*)malloc(sizeof(textured_vertex_buffer));
-   textured_vertex* vertices = (textured_vertex*)malloc(max * sizeof(textured_vertex));
-   u32* indices = (u32*)malloc(max * 2 * sizeof(u32));
-
-   result->max = max;
-   result->vcnt = 0;
-   result->icnt = 0;
-   result->vertices = vertices;
-   result->indices = indices;
-
-   glGenBuffers(2, result->buffers);
-   glGenVertexArrays(1, &result->vao);
-
-   glBindVertexArray(result->vao);
-
-   glBindBuffer(GL_ARRAY_BUFFER, result->buffers[0]);
-   glBufferData(GL_ARRAY_BUFFER, max * sizeof(textured_vertex), 0, GL_STREAM_DRAW);
-
-   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, result->buffers[1]);
-   glBufferData(GL_ELEMENT_ARRAY_BUFFER, max * 2 * sizeof(u32), 0, GL_STREAM_DRAW);
-
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), NULL);
-   glEnableVertexAttribArray(0);
-   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3*sizeof(f32)));
-   glEnableVertexAttribArray(1);
-
-   glBindVertexArray(0);
-
-   return result;
-}
-
-void freeTexturedVertexBuffer(textured_vertex_buffer* tvb)
-{
-   glDeleteBuffers(2, tvb->buffers);
-   glDeleteVertexArrays(1, &tvb->vao);
-   free(tvb->indices);
-   free(tvb->vertices);
-   free(tvb);
-}
-
-void drawTexturedVertexBuffer(textured_vertex_buffer* tvb)
+void drawTexturedVertexBuffer(vertex_buffer* tvb)
 {
    glBindVertexArray(tvb->vao);
 
    glBindBuffer(GL_ARRAY_BUFFER, tvb->buffers[0]);
-   glBufferData(GL_ARRAY_BUFFER, tvb->max * sizeof(textured_vertex), 0, GL_STREAM_DRAW);
-   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(textured_vertex), tvb->vertices);
+   glBufferData(GL_ARRAY_BUFFER, tvb->max * sizeof(vertex), 0, GL_STREAM_DRAW);
+   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(vertex), tvb->vertices);
 
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tvb->buffers[1]);
    glBufferData(GL_ELEMENT_ARRAY_BUFFER, tvb->max * 2 * sizeof(u32), 0, GL_STREAM_DRAW);
@@ -641,11 +609,12 @@ void drawTexturedVertexBuffer(textured_vertex_buffer* tvb)
    tvb->vcnt = 0;
    tvb->icnt = 0;
 }
+#endif
 
-void addTextured2DQuad(textured_vertex_buffer* b, vec2 pll, vec2 pur, vec2 tll, vec2 tur)
+void addTextured2DQuad(vertex_buffer* b, vec2 pll, vec2 pur, vec2 tll, vec2 tur)
 {
    if ((b->vcnt + 6) > b->max) {
-      drawTexturedVertexBuffer(b);
+      drawBufferElements(b, GL_TRIANGLES);
    }
 
    u32 v = b->vcnt;
@@ -880,27 +849,29 @@ bool InitializeRenderer(renderer* rin)
    // load opengl api on intialize in case of dll reload
    LoadGL();
 
-   rin->impl = &Renderer;
-   renderer_implementation *r = &Renderer;
-   screen_viewport* vp = &rin->viewport;
+   if (rin->impl) {
+      renderer_implementation* r = rin->impl;
 
-
-
-	glClearColor(0.2f, 0.2f, 0.2f, 1.0);
-
-   if (r->TheFont) {
       free_screen_font(r->TheFont);
       r->TheFont = 0;
       glDeleteTextures(1, &r->FontTexture);
 
       glDeleteProgram(r->fontProgram);
       glDeleteProgram(r->ColorProgram);
-      freeTexturedVertexBuffer(r->FontVertexBuffer);
-      freeColoredVertexBuffer(r->Colors);
+      freeVertexBuffer(r->FontVertexBuffer);
+      freeVertexBuffer(r->Colors);
 
       glDeleteProgram(r->WorldProgram);
+
+      free(r);
    }
 
+   rin->impl = (renderer_implementation*)malloc(sizeof(renderer_implementation));
+   renderer_implementation *r = rin->impl;
+   screen_viewport* vp = &rin->viewport;
+
+
+	glClearColor(0.2f, 0.2f, 0.2f, 1.0);
 
    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -908,13 +879,13 @@ bool InitializeRenderer(renderer* rin)
    r->TheFont = createFont(512, 512, "monaco.ttf");
    r->FontTexture = createTexture((u8*)r->TheFont->textureData, 512, 512, 1, GL_RED);
    r->fontProgram = compileShader("font.vert", "font.frag");
-   r->FontVertexBuffer = createTexturedVertexBuffer(512);
+   r->FontVertexBuffer = createVertexBuffer(512);
 
    r->ColorProgram = compileShader("solid");
-   r->Colors = createColoredVertexBuffer(256);
+   r->Colors = createVertexBuffer(256);
 
    r->WorldProgram = compileShader("solid3d");
-   r->worldProj = Perspective(45.0f, (f32)vp->width / (f32)vp->height, 0.1f, 50.0f);
+   r->worldProj = Perspective(45.0f, (f32)vp->width / (f32)vp->height, 0.1f, 500.0f);
 
 
    r->uiProj = Ortho2D(0, (f32)vp->width, 0, (f32)vp->height, -1, 1);
@@ -936,7 +907,7 @@ bool ResizeWindow(renderer* rin, int width, int height)
    vp->width = width;
    vp->height = height;
 
-   r->worldProj = Perspective(45.0f, (f32)vp->width / (f32)vp->height, 0.1f, 50.0f);
+   r->worldProj = Perspective(45.0f, (f32)vp->width / (f32)vp->height, 0.1f, 500.0f);
    r->uiProj = Ortho2D(0, (f32)vp->width, 0, (f32)vp->height, -1, 1);
    bindUniform(r->fontProgram, "proj", r->uiProj);
 
@@ -967,6 +938,7 @@ void RenderFrame(renderer* rin, game_state* state)
 {
    renderer_implementation* r = rin->impl;
    GlobalDebug = state->DebugSystem;
+   game_world* world = &state->world;
 
    glFinish();
 
@@ -1000,17 +972,22 @@ void RenderFrame(renderer* rin, game_state* state)
       vec4(1, 0.5, 0.5, 1),
    };
 
-   addColoredCube(r->Colors, vec3(0, 0, 0), vec3(1, 1, 1), colors);
+   for (u32 i = 0; i < arraycount(world->cubes); i++)
+   {
+      cube* c = world->cubes + i;
+      addColoredCube(r->Colors, vec3(0, 0, 0), vec3(1, 1, 1), colors);
+      bindUniform(r->WorldProgram, "model", translationMatrix(c->p) * scaleMatrix(c->dim) * rotationY(c->angle));
+      drawBufferElements(r->Colors, GL_TRIANGLES);
+   }
 
    //addColored2DQuad(r->Colors, vec2(-10, -10), vec2(10, 10), vec4(0.8f, 0.2f, 0.2f, 1));
-   drawColoredVertexTriangles(r->Colors);
 
 
    glDisable(GL_DEPTH);
 
    // ui pass
 
-   textured_vertex_buffer* t = r->FontVertexBuffer;
+   vertex_buffer* t = r->FontVertexBuffer;
    screen_font_size* f = findFontSize(r->TheFont, 9);
 
    f32 y = f->size;
@@ -1096,7 +1073,7 @@ void RenderFrame(renderer* rin, game_state* state)
       }
    }
    x += drawString(t, f, x, y, "]");
-   drawTexturedVertexBuffer(r->FontVertexBuffer);
+   drawBufferElements(r->FontVertexBuffer, GL_TRIANGLES);
 
    y += f->size;
    x = 5;
@@ -1113,7 +1090,7 @@ void RenderFrame(renderer* rin, game_state* state)
       }
    }
    x += drawString(t, f, x, y, "]");
-   drawTexturedVertexBuffer(r->FontVertexBuffer);
+   drawBufferElements(r->FontVertexBuffer, GL_TRIANGLES);
 
    y += f->size;
    x = 5;
@@ -1130,8 +1107,11 @@ void RenderFrame(renderer* rin, game_state* state)
       }
    }
    x += drawString(t, f, x, y, "]");
-   drawTexturedVertexBuffer(r->FontVertexBuffer);
+   drawBufferElements(r->FontVertexBuffer, GL_TRIANGLES);
 
+   y += f->size;
+   x = 5;
+   x += drawString(t, f, x, y, "foooo");
    /*
    // draw ui plots
    glUseProgram(r->ColorProgram);

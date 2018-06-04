@@ -20,6 +20,14 @@ void initializeWorld(game_world* world)
    world->camera.v = vec3(0, 0, 0);
    world->camera.pitch = 0;
    world->camera.yaw = 270.0;
+
+   f32 w = 5.0;
+   for (u32 i = 0; i < arraycount(world->cubes); i++)
+   {
+      world->cubes[i].p = vec3(i * 2 * w, 0, 0);
+      world->cubes[i].dim = vec3(w, 2*w, w);
+      world->cubes[i].angle = i * 0.25f;
+   }
 }
 
 bool isDown(game_input* i, int button)
@@ -70,6 +78,16 @@ extern "C" {
       }
 
       state->angle += state->rate * input->dt;
+
+      game_world* world = &state->world;
+
+      f32 w = 2.0;
+      for (u32 i = 0; i < arraycount(world->cubes); i++)
+      {
+         world->cubes[i].p = vec3(i * 2 * w, 0, 0);
+         world->cubes[i].dim = vec3(w, 2*w, w);
+         world->cubes[i].angle += state->rate * input->dt;
+      }
 
       // accelerate camera
       vec3 f = vec3(0, 0, 0);
