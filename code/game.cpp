@@ -28,6 +28,8 @@ void initializeWorld(game_world* world)
       world->cubes[i].dim = vec3(w, 2*w, w);
       world->cubes[i].angle = i * 0.25f;
    }
+
+   world->picked_cube = 0;
 }
 
 bool isDown(game_input* i, int button)
@@ -68,6 +70,11 @@ extern "C" {
          state->world.camera.yaw = 270.0f;
       }
 
+      if (letterDown(input, 'P')) {
+         state->draw_pick_buffer = true;
+      } else {
+         state->draw_pick_buffer = false;
+      }
 
       if (letterDown(input, 'N')) {
          state->rate += 0.1;

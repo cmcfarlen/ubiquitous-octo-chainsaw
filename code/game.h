@@ -67,6 +67,7 @@ struct game_world
    bool isInitialized;
    world_camera camera;
 
+   u32 picked_cube;
    cube cubes[10];
 };
 
@@ -77,6 +78,8 @@ struct game_state
 
    f32 rate;
    f32 angle;
+
+   bool draw_pick_buffer;
 
    game_input current_input;
    game_world world;

@@ -30,6 +30,7 @@ GLAPI void APIENTRY glTexImage2D (GLenum target, GLint level, GLint internalform
 GLAPI void APIENTRY glBlendFunc(	GLenum  	sfactor, GLenum  	dfactor);
 GLAPI GLenum APIENTRY glGetError(void);
 GLAPI void APIENTRY glScissor (GLint, GLint, GLint, GLint);
+GLAPI void APIENTRY glReadPixels (GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, void *pixels);
 
 }
 
@@ -64,6 +65,7 @@ PFNGLGENERATEMIPMAPPROC glGenerateMipmap = 0;
 PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation = 0;
 PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv = 0;
 PFNGLUNIFORM4FVPROC glUniform4fv = 0;
+PFNGLUNIFORM1IPROC glUniform1i = 0;
 
 
 // wgl defines
@@ -295,6 +297,7 @@ void LoadGL()
    glGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC)wglGetProcAddress("glGetUniformLocation");
    glUniformMatrix4fv = (PFNGLUNIFORMMATRIX4FVPROC)wglGetProcAddress("glUniformMatrix4fv");
    glUniform4fv = (PFNGLUNIFORM4FVPROC)wglGetProcAddress("glUniform4fv");
+   glUniform1i = (PFNGLUNIFORM1IPROC)wglGetProcAddress("glUniform1i");
 }
 
 #include "win32_opengl.h"
@@ -336,6 +339,7 @@ struct renderer_implementation
    unsigned int ColorProgram;
 
    unsigned int WorldProgram;
+   unsigned int PickProgram;
 
    mat4 worldProj;
    mat4 uiProj;
@@ -743,6 +747,14 @@ bool bindUniform(GLuint program, const char* location, const vec4& v)
    return true;
 }
 
+bool bindUniform(GLuint program, const char* location, int v)
+{
+   int p = glGetUniformLocation(program, location);
+   glUseProgram(program);
+   glUniform1i(p, v);
+   return true;
+}
+
 GLuint createTexture(u8* imageData, int width, int height, int channels, GLenum type = 0)
 {
    unsigned int texture;
@@ -862,6 +874,7 @@ bool InitializeRenderer(renderer* rin)
       freeVertexBuffer(r->Colors);
 
       glDeleteProgram(r->WorldProgram);
+      glDeleteProgram(r->PickProgram);
 
       free(r);
    }
@@ -871,7 +884,6 @@ bool InitializeRenderer(renderer* rin)
    screen_viewport* vp = &rin->viewport;
 
 
-	glClearColor(0.2f, 0.2f, 0.2f, 1.0);
 
    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -887,6 +899,7 @@ bool InitializeRenderer(renderer* rin)
    r->WorldProgram = compileShader("solid3d");
    r->worldProj = Perspective(45.0f, (f32)vp->width / (f32)vp->height, 0.1f, 500.0f);
 
+   r->PickProgram = compileShader("pick");
 
    r->uiProj = Ortho2D(0, (f32)vp->width, 0, (f32)vp->height, -1, 1);
    bindUniform(r->fontProgram, "proj", r->uiProj);
@@ -934,21 +947,59 @@ const char* button_names[] = {
    "DOWN"
 };
 
-void RenderFrame(renderer* rin, game_state* state)
+void PickWorld(renderer* rin, game_state* state)
 {
    renderer_implementation* r = rin->impl;
-   GlobalDebug = state->DebugSystem;
    game_world* world = &state->world;
 
-   glFinish();
+   // world pass
+   world_camera* camera = &world->camera;
 
-   timed_function();
+   glEnable(GL_DEPTH_TEST);
+   glDisable(GL_BLEND);
 
-   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+   vec3 dir = directionFromPitchYaw(camera->pitch, camera->yaw);
+
+   mat4 view = LookAt(camera->p, camera->p + dir, vec3(0, 1, 0));
+
+   //mat4 view = rotationY(camera->yaw) * rotationX(camera->pitch) * translationMatrix(camera->p);
+
+   glUseProgram(r->PickProgram);
+   bindUniform(r->PickProgram, "proj", r->worldProj);
+   bindUniform(r->PickProgram, "view", view);
+
+   vec4 colors[6] = {
+      vec4(1, 0, 0, 1),
+      vec4(0, 1, 0, 1),
+      vec4(0, 0, 1, 1),
+      vec4(1, 1, 0, 1),
+      vec4(1, 0, 1, 1),
+      vec4(1, 0.5, 0.5, 1),
+   };
+   for (u32 i = 0; i < arraycount(world->cubes); i++)
+   {
+      cube* c = world->cubes + i;
+      addColoredCube(r->Colors, vec3(0, 0, 0), vec3(1, 1, 1), colors);
+      bindUniform(r->PickProgram, "model", translationMatrix(c->p) * scaleMatrix(c->dim) * rotationY(c->angle));
+      bindUniform(r->PickProgram, "code", i + 1);
+      drawBufferElements(r->Colors, GL_TRIANGLES);
+   }
+
+   vec2 mp = state->current_input.mouse_p;
+   u32 res = 0;
+   glReadPixels((int)mp.x, rin->viewport.height - (int)mp.y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &res);
+
+   state->world.picked_cube = res & 0xff;
+}
+
+void RenderWorld(renderer* rin, game_state* state)
+{
+   renderer_implementation* r = rin->impl;
+   game_world* world = &state->world;
 
    // world pass
-   world_camera* camera = &state->world.camera;
-   
+   world_camera* camera = &world->camera;
+
    glEnable(GL_DEPTH_TEST);
    glDisable(GL_BLEND);
 
@@ -984,14 +1035,21 @@ void RenderFrame(renderer* rin, game_state* state)
 
 
    glDisable(GL_DEPTH);
+}
+
+void RenderUI(renderer* rin, game_state* state)
+{
+   renderer_implementation* r = rin->impl;
+   game_world* world = &state->world;
+   world_camera* camera = &world->camera;
 
    // ui pass
-
    vertex_buffer* t = r->FontVertexBuffer;
    screen_font_size* f = findFontSize(r->TheFont, 9);
 
    f32 y = f->size;
    f32 x = 50;
+   vec3 dir = directionFromPitchYaw(camera->pitch, camera->yaw);
 
    // draw ui text
    glEnable(GL_BLEND);
@@ -1107,11 +1165,14 @@ void RenderFrame(renderer* rin, game_state* state)
       }
    }
    x += drawString(t, f, x, y, "]");
-   drawBufferElements(r->FontVertexBuffer, GL_TRIANGLES);
 
    y += f->size;
    x = 5;
-   x += drawString(t, f, x, y, "foooo");
+   x += drawString(t, f, x, y, "Picked: ");
+   x += drawInt(t, f, x, y, world->picked_cube);
+
+   drawBufferElements(r->FontVertexBuffer, GL_TRIANGLES);
+
    /*
    // draw ui plots
    glUseProgram(r->ColorProgram);
@@ -1132,6 +1193,27 @@ void RenderFrame(renderer* rin, game_state* state)
    */
 
    glBindVertexArray(0);
+}
+
+void RenderFrame(renderer* rin, game_state* state)
+{
+   GlobalDebug = state->DebugSystem;
+
+   glFinish();
+
+   timed_function();
+
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+   PickWorld(rin, state);
+
+   if (!state->draw_pick_buffer) {
+      glClearColor(0.2f, 0.2f, 0.2f, 1.0);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      RenderWorld(rin, state);
+   }
+
+   RenderUI(rin, state);
 }
 
 }

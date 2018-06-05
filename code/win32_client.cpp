@@ -294,7 +294,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-BOOL WindowsSetup(HINSTANCE hInstance, int nCmdShow)
+HWND WindowsSetup(HINSTANCE hInstance, int nCmdShow)
 {
 	WNDCLASSEXW wcex = {};
 
@@ -321,13 +321,13 @@ BOOL WindowsSetup(HINSTANCE hInstance, int nCmdShow)
 
 	if (!hWnd)
 	{
-		return FALSE;
+		return 0;
 	}
 
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
 
-	return TRUE;
+	return hWnd;
 }
 
 void loadRenderAPI(renderer_api* api, HMODULE dll)
@@ -426,7 +426,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
    loadDll(&renderWatch);
    loadRenderAPI(&RenderAPI, renderWatch.handle);
 
-	WindowsSetup(hInstance, nCmdShow);
+   HWND window = WindowsSetup(hInstance, nCmdShow);
 
 	MSG msg;
 
@@ -440,10 +440,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
    POINT cursorPt;
 
    GetCursorPos(&cursorPt);
+   ScreenToClient(window, &cursorPt);
    GlobalInput.mouse_p = vec2((f32)cursorPt.x, (f32)cursorPt.y);
    GlobalInput.mouse_dp = vec2(0, 0);
    setupKeymappings(keymappings);
-	
+
 	int running = 1;
 	while (running)
 	{
@@ -477,6 +478,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
          timed_block("updateandrender");
          QueryPerformanceCounter(&now);
          GetCursorPos(&cursorPt);
+         ScreenToClient(window, &cursorPt);
 
          LONGLONG diff = now.QuadPart - prev.QuadPart;
          prev = now;

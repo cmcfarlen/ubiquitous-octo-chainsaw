@@ -35,7 +35,7 @@ screen_font_size* findFontSize(screen_font* font, int size);
 f32 drawChar(vertex_buffer* b, screen_font_size* s, int c, f32 X, f32 Y);
 f32 drawString(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, const char* text);
 
-f32 drawInt(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, s64 number, unsigned int padding = 1);
+f32 drawInt(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, s64 number, unsigned int padding = 1, unsigned int base = 10);
 f32 drawFloat(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, f32 number, int precision);
 f32 drawDouble(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, f64 number, int precision);
 f32 drawVec3(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, vec3 v);

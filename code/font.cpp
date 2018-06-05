@@ -84,8 +84,9 @@ f32 drawString(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, const c
    return X - XBegin;
 }
 
-f32 drawInt(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, s64 number, unsigned int padding)
+f32 drawInt(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, s64 number, unsigned int padding, unsigned int base)
 {
+   static char digits[] = "0123456789ABCDEF";
    f32 X = XBegin;
 
    char buffer[32] = "0000000000";
@@ -95,15 +96,15 @@ f32 drawInt(vertex_buffer* b, screen_font_size* p, f32 XBegin, f32 Y, s64 number
 
    buffer[padding] = 0;
 
-   if (number < 0) {
+   if (number < 0 && base != 16) {
       X += drawChar(b, p, '-', X, Y);
       number = -number;
    }
 
    unsigned int idx = 0;
    while (number > 0) {
-      buffer[idx++] = (number % 10) + '0';
-      number /= 10;
+      buffer[idx++] = digits[(number % base)];
+      number /= base;
    }
 
    padding = padding < idx ? idx : padding;
