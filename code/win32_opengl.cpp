@@ -329,6 +329,13 @@ struct vertex_buffer
    unsigned int vao;
 };
 
+struct height_map
+{
+   u8* heights;
+   u32 width;
+   u32 height;
+};
+
 struct renderer_implementation
 {
    screen_font* TheFont;
@@ -343,6 +350,9 @@ struct renderer_implementation
 
    mat4 worldProj;
    mat4 uiProj;
+
+   height_map* heightmap;
+   unsigned int heighttexture;
 };
 
 platform_api Platform;
@@ -359,7 +369,7 @@ vertex_buffer* createVertexBuffer(u32 max)
 {
    vertex_buffer* result = (vertex_buffer*)malloc(sizeof(vertex_buffer));
    vertex* vertices = (vertex*)malloc(max * sizeof(vertex));
-   u32* indices = (u32*)malloc(max * 2 * sizeof(u32));
+   u32* indices = (u32*)malloc(max * 6 * sizeof(u32));
 
    result->max = max;
    result->vcnt = 0;
@@ -376,7 +386,7 @@ vertex_buffer* createVertexBuffer(u32 max)
    glBufferData(GL_ARRAY_BUFFER, max * sizeof(vertex), 0, GL_STREAM_DRAW);
 
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, result->buffers[1]);
-   glBufferData(GL_ELEMENT_ARRAY_BUFFER, max * 2 * sizeof(u32), 0, GL_STREAM_DRAW);
+   glBufferData(GL_ELEMENT_ARRAY_BUFFER, max * 6 * sizeof(u32), 0, GL_STREAM_DRAW);
 
    // position
    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(f32), NULL);
@@ -645,6 +655,74 @@ void addTextured2DQuad(vertex_buffer* b, vec2 pll, vec2 pur, vec2 tll, vec2 tur)
    b->icnt += 6;
 }
 
+vec4 RGBA(int r, int g, int b, int a = 255)
+{
+   return vec4(r/255.0f, g/255.0f, b/255.0f, a/255.0f);
+}
+
+height_map* loadHeightMap(const char* resource)
+{
+   u32 hmsize = 0;
+   int hmwidth, hmheight, hmchannels;
+   u8* heightmapfile = Platform.slurp(resource, &hmsize);
+
+   hmchannels = 0;
+   u8* heightmap = (u8*)stbi_load_from_memory((stbi_uc const*)heightmapfile, (int)hmsize, &hmwidth, &hmheight, &hmchannels, 1);
+
+   height_map* result = (height_map*)malloc(sizeof(height_map));
+   result->heights = heightmap;
+   result->width = hmwidth;
+   result->height = hmheight;
+
+   return result;
+}
+
+void freeHeightMap(height_map* hm)
+{
+   stbi_image_free(hm->heights);
+   free(hm);
+}
+
+void addGrid(vertex_buffer* b, height_map* hm, vec3 pt, f32 width, f32 height, int rows, int cols)
+{
+   f32 stepx = width / cols;
+   f32 stepz = height / rows;
+   vertex* v = b->vertices;
+   u32* e = b->indices;
+   vec4 color = RGBA(242, 236, 218);
+   u8* heightmap = hm->heights;
+
+   int vidx0 = b->vcnt;
+
+   for (int r = 0; r < rows; r++) {
+      for (int c = 0; c < cols; c++) {
+         int idx = vidx0 + r * cols + c;
+         u32 h = heightmap[r * cols + c];
+         if (h != 0xff) {
+            h += 0;
+         }
+         f32 y = 10 * (1.0f - h / 255.0f);
+         v[idx].P = pt + vec3(c * stepx, y, r * stepz);
+         v[idx].C = color;
+      }
+   }
+
+   int i = b->icnt;
+   for (int r = 0; r < rows-1; r++) {
+      for (int c = 0; c < cols-1; c++) {
+         e[i++] = vidx0 + (r+1)*cols + c;
+         e[i++] = vidx0 + (r)*cols + c + 1;
+         e[i++] = vidx0 + (r)*cols + c;
+         e[i++] = vidx0 + (r+1)*cols + c;
+         e[i++] = vidx0 + (r+1)*cols + c + 1;
+         e[i++] = vidx0 + (r)*cols + c + 1;
+      }
+   }
+
+   b->vcnt += rows * cols;
+   b->icnt = i;
+}
+
 
 GLuint compileShader(const char* vertexName, const char* fragmentName)
 {
@@ -876,6 +954,8 @@ bool InitializeRenderer(renderer* rin)
       glDeleteProgram(r->WorldProgram);
       glDeleteProgram(r->PickProgram);
 
+      free(r->heightmap);
+
       free(r);
    }
 
@@ -894,7 +974,7 @@ bool InitializeRenderer(renderer* rin)
    r->FontVertexBuffer = createVertexBuffer(512);
 
    r->ColorProgram = compileShader("solid");
-   r->Colors = createVertexBuffer(256);
+   r->Colors = createVertexBuffer(2048);
 
    r->WorldProgram = compileShader("solid3d");
    r->worldProj = Perspective(45.0f, (f32)vp->width / (f32)vp->height, 0.1f, 500.0f);
@@ -908,6 +988,9 @@ bool InitializeRenderer(renderer* rin)
    bindUniform(r->ColorProgram, "proj", Ortho2D(0, (f32)vp->width, (f32)vp->height, 0, -1, 1));
    //bindUniform(r->ColorProgram, "view", IdentityMatrix());
    bindUniform(r->ColorProgram, "view", PlotView(-10, 10, -1.5, 1.5, 502, 502, 200, 100));
+
+   r->heightmap = loadHeightMap("heightmaptest.bmp");
+   r->heighttexture = createTexture("heightmaptest.bmp");
 
    return true;
 }
@@ -949,6 +1032,8 @@ const char* button_names[] = {
 
 void PickWorld(renderer* rin, game_state* state)
 {
+   timed_function();
+
    renderer_implementation* r = rin->impl;
    game_world* world = &state->world;
 
@@ -994,6 +1079,8 @@ void PickWorld(renderer* rin, game_state* state)
 
 void RenderWorld(renderer* rin, game_state* state)
 {
+   timed_function();
+
    renderer_implementation* r = rin->impl;
    game_world* world = &state->world;
 
@@ -1023,15 +1110,41 @@ void RenderWorld(renderer* rin, game_state* state)
       vec4(1, 0.5, 0.5, 1),
    };
 
+   vec4 pcolors[6] = {
+      vec4(1, 0, 1, 1),
+      vec4(1, 0, 0, 1),
+      vec4(1, 0, 0, 1),
+      vec4(1, 0, 0, 1),
+      vec4(1, 0, 0, 1),
+      vec4(1, 0, 0, 1),
+   };
+
    for (u32 i = 0; i < arraycount(world->cubes); i++)
    {
+      vec4* clrs = colors;
+      if (i + 1 == state->world.picked_cube) {
+         clrs = pcolors;
+      }
       cube* c = world->cubes + i;
-      addColoredCube(r->Colors, vec3(0, 0, 0), vec3(1, 1, 1), colors);
+      addColoredCube(r->Colors, vec3(0, 0, 0), vec3(1, 1, 1), clrs);
       bindUniform(r->WorldProgram, "model", translationMatrix(c->p) * scaleMatrix(c->dim) * rotationY(c->angle));
       drawBufferElements(r->Colors, GL_TRIANGLES);
    }
 
    //addColored2DQuad(r->Colors, vec2(-10, -10), vec2(10, 10), vec4(0.8f, 0.2f, 0.2f, 1));
+
+   glDeleteTextures(1, &r->heighttexture);
+   freeHeightMap(r->heightmap);
+
+   r->heightmap = loadHeightMap("heightmaptest.bmp");
+   r->heighttexture = createTexture("heightmaptest.bmp");
+
+   glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+   addGrid(r->Colors, r->heightmap, vec3(-20, -1, -20), 40.0f, 40.0f, 32, 32);
+
+   bindUniform(r->WorldProgram, "model", IdentityMatrix());
+   drawBufferElements(r->Colors, GL_TRIANGLES);
+   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
    glDisable(GL_DEPTH);
@@ -1039,6 +1152,8 @@ void RenderWorld(renderer* rin, game_state* state)
 
 void RenderUI(renderer* rin, game_state* state)
 {
+   timed_function();
+
    renderer_implementation* r = rin->impl;
    game_world* world = &state->world;
    world_camera* camera = &world->camera;
@@ -1173,6 +1288,9 @@ void RenderUI(renderer* rin, game_state* state)
 
    drawBufferElements(r->FontVertexBuffer, GL_TRIANGLES);
 
+   glBindTexture(GL_TEXTURE_2D, r->heighttexture);
+   addTextured2DQuad(r->FontVertexBuffer, vec2(5, y+50), vec2(55, y+100), vec2(0, 0), vec2(1, 1));
+   drawBufferElements(r->FontVertexBuffer, GL_TRIANGLES);
    /*
    // draw ui plots
    glUseProgram(r->ColorProgram);
@@ -1200,8 +1318,6 @@ void RenderFrame(renderer* rin, game_state* state)
    GlobalDebug = state->DebugSystem;
 
    glFinish();
-
-   timed_function();
 
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
