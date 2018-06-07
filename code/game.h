@@ -69,6 +69,10 @@ struct game_world
 
    u32 picked_cube;
    cube cubes[10];
+
+   vec3 lightP;
+   vec3 lightV;
+   int move_target;
 };
 
 struct game_state

@@ -16,6 +16,8 @@ void initializeWorld(game_world* world)
 
    world->isInitialized = true;
 
+   world->move_target = 0;
+
    world->camera.p = vec3(0, 0, 20);
    world->camera.v = vec3(0, 0, 0);
    world->camera.pitch = 0;
@@ -30,6 +32,8 @@ void initializeWorld(game_world* world)
    }
 
    world->picked_cube = 0;
+
+   world->lightP = vec3(5, 5, 5);
 }
 
 bool isDown(game_input* i, int button)
@@ -54,6 +58,15 @@ void accelerateCamera(world_camera* c, f32 dt, vec3 a)
 
    c->p += a * (0.5f * dt * dt) + v * dt;
    c->v += a * dt;
+}
+
+void accelerateLight(game_world* w, f32 dt, vec3 a)
+{
+   vec3 v = w->lightV;
+   a += v * -8.0f; // dampen
+
+   w->lightP += a * (0.5f * dt * dt) + v * dt;
+   w->lightV += a * dt;
 }
 
 extern "C" {
@@ -82,6 +95,12 @@ extern "C" {
 
       if (letterDown(input, 'M')) {
          state->rate -= 0.1;
+      }
+
+      if (letterDown(input, 'L')) {
+         state->world.move_target = 1;
+      } else {
+         state->world.move_target = 0;
       }
 
       state->angle += state->rate * input->dt;
@@ -122,7 +141,12 @@ extern "C" {
       }
 
       f = normalize(f) * 50.0f;
-      accelerateCamera(&state->world.camera, input->dt, f);
+
+      if (state->world.move_target == 0) {
+         accelerateCamera(&state->world.camera, input->dt, f);
+      } else {
+         accelerateLight(&state->world, input->dt, f);
+      }
 
       if (input->mouse_buttons_down[MOUSE_BUTTON1]) {
          vec2 py = input->mouse_dp * 0.1;

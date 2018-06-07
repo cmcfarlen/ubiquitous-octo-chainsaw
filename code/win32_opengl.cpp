@@ -64,6 +64,7 @@ PFNGLDELETEPROGRAMPROC glDeleteProgram = 0;
 PFNGLGENERATEMIPMAPPROC glGenerateMipmap = 0;
 PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation = 0;
 PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv = 0;
+PFNGLUNIFORM3FVPROC glUniform3fv = 0;
 PFNGLUNIFORM4FVPROC glUniform4fv = 0;
 PFNGLUNIFORM1IPROC glUniform1i = 0;
 
@@ -296,6 +297,7 @@ void LoadGL()
    glGenerateMipmap = (PFNGLGENERATEMIPMAPPROC)wglGetProcAddress("glGenerateMipmap");
    glGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC)wglGetProcAddress("glGetUniformLocation");
    glUniformMatrix4fv = (PFNGLUNIFORMMATRIX4FVPROC)wglGetProcAddress("glUniformMatrix4fv");
+   glUniform3fv = (PFNGLUNIFORM3FVPROC)wglGetProcAddress("glUniform3fv");
    glUniform4fv = (PFNGLUNIFORM4FVPROC)wglGetProcAddress("glUniform4fv");
    glUniform1i = (PFNGLUNIFORM1IPROC)wglGetProcAddress("glUniform1i");
 }
@@ -315,6 +317,7 @@ struct vertex
    vec3 P;
    vec2 T;
    vec4 C;
+   vec3 N;
 };
 #pragma pack(pop)
 
@@ -347,6 +350,7 @@ struct renderer_implementation
 
    unsigned int WorldProgram;
    unsigned int PickProgram;
+   unsigned int BasicLightProgram;
 
    mat4 worldProj;
    mat4 uiProj;
@@ -389,14 +393,18 @@ vertex_buffer* createVertexBuffer(u32 max)
    glBufferData(GL_ELEMENT_ARRAY_BUFFER, max * 6 * sizeof(u32), 0, GL_STREAM_DRAW);
 
    // position
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(f32), NULL);
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 12 * sizeof(f32), NULL);
    glEnableVertexAttribArray(0);
    // texture
-   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 9 * sizeof(f32), (void*)(3*sizeof(f32)));
+   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 12 * sizeof(f32), (void*)(3*sizeof(f32)));
    glEnableVertexAttribArray(1);
    // color
-   glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 9 * sizeof(f32), (void*)(5*sizeof(f32)));
+   glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 12 * sizeof(f32), (void*)(5*sizeof(f32)));
    glEnableVertexAttribArray(2);
+
+   // color
+   glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 12 * sizeof(f32), (void*)(9*sizeof(f32)));
+   glEnableVertexAttribArray(3);
 
    glBindVertexArray(0);
 
@@ -704,19 +712,49 @@ void addGrid(vertex_buffer* b, height_map* hm, vec3 pt, f32 width, f32 height, i
          f32 y = 10 * (1.0f - h / 255.0f);
          v[idx].P = pt + vec3(c * stepx, y, r * stepz);
          v[idx].C = color;
+         v[idx].N = vec3(0, 0, 0);
       }
    }
 
    int i = b->icnt;
    for (int r = 0; r < rows-1; r++) {
       for (int c = 0; c < cols-1; c++) {
-         e[i++] = vidx0 + (r+1)*cols + c;
-         e[i++] = vidx0 + (r)*cols + c + 1;
-         e[i++] = vidx0 + (r)*cols + c;
-         e[i++] = vidx0 + (r+1)*cols + c;
-         e[i++] = vidx0 + (r+1)*cols + c + 1;
-         e[i++] = vidx0 + (r)*cols + c + 1;
+         int va = vidx0 + (r+1)*cols + c;
+         int vb = vidx0 + (r)*cols + c + 1;
+         int vc = vidx0 + (r)*cols + c;
+
+         vec3 vab = v[vb].P - v[va].P;
+         vec3 vac = v[vc].P - v[va].P;
+         vec3 N = cross(vab, vac);
+
+         v[va].N += N;
+         v[vb].N += N;
+         v[vc].N += N;
+
+         e[i++] = va;
+         e[i++] = vb;
+         e[i++] = vc;
+
+         va = vidx0 + (r+1)*cols + c;
+         vb = vidx0 + (r+1)*cols + c + 1;
+         vc = vidx0 + (r)*cols + c + 1;
+
+         vab = v[vb].P - v[va].P;
+         vac = v[vc].P - v[va].P;
+         N = cross(vab, vac);
+
+         v[va].N += N;
+         v[vb].N += N;
+         v[vc].N += N;
+
+         e[i++] = va;
+         e[i++] = vb;
+         e[i++] = vc;
       }
+   }
+
+   for (int ni = vidx0; ni < rows*cols; ni++) {
+      v[ni].N = normalize(v[ni].N);
    }
 
    b->vcnt += rows * cols;
@@ -822,6 +860,14 @@ bool bindUniform(GLuint program, const char* location, const vec4& v)
    int p = glGetUniformLocation(program, location);
    glUseProgram(program);
    glUniform4fv(p, 1, v.v);
+   return true;
+}
+
+bool bindUniform(GLuint program, const char* location, const vec3& v)
+{
+   int p = glGetUniformLocation(program, location);
+   glUseProgram(program);
+   glUniform3fv(p, 1, v.v);
    return true;
 }
 
@@ -953,6 +999,7 @@ bool InitializeRenderer(renderer* rin)
 
       glDeleteProgram(r->WorldProgram);
       glDeleteProgram(r->PickProgram);
+      glDeleteProgram(r->BasicLightProgram);
 
       free(r->heightmap);
 
@@ -980,6 +1027,7 @@ bool InitializeRenderer(renderer* rin)
    r->worldProj = Perspective(45.0f, (f32)vp->width / (f32)vp->height, 0.1f, 500.0f);
 
    r->PickProgram = compileShader("pick");
+   r->BasicLightProgram = compileShader("basic_lighting");
 
    r->uiProj = Ortho2D(0, (f32)vp->width, 0, (f32)vp->height, -1, 1);
    bindUniform(r->fontProgram, "proj", r->uiProj);
@@ -1099,7 +1147,6 @@ void RenderWorld(renderer* rin, game_state* state)
    glUseProgram(r->WorldProgram);
    bindUniform(r->WorldProgram, "proj", r->worldProj);
    bindUniform(r->WorldProgram, "view", view);
-   bindUniform(r->WorldProgram, "model", rotationY(state->angle));
 
    vec4 colors[6] = {
       vec4(1, 0, 0, 1),
@@ -1119,6 +1166,16 @@ void RenderWorld(renderer* rin, game_state* state)
       vec4(1, 0, 0, 1),
    };
 
+   vec4 white = vec4(1, 1, 1, 1);
+   vec4 wcolors[6] = {
+      white,
+      white,
+      white,
+      white,
+      white,
+      white,
+   };
+
    for (u32 i = 0; i < arraycount(world->cubes); i++)
    {
       vec4* clrs = colors;
@@ -1131,6 +1188,11 @@ void RenderWorld(renderer* rin, game_state* state)
       drawBufferElements(r->Colors, GL_TRIANGLES);
    }
 
+
+   addColoredCube(r->Colors, vec3(0, 0, 0), vec3(0.5, 0.5, 0.5), wcolors);
+   bindUniform(r->WorldProgram, "model", translationMatrix(world->lightP));
+   drawBufferElements(r->Colors, GL_TRIANGLES);
+
    //addColored2DQuad(r->Colors, vec2(-10, -10), vec2(10, 10), vec4(0.8f, 0.2f, 0.2f, 1));
 
    glDeleteTextures(1, &r->heighttexture);
@@ -1139,10 +1201,18 @@ void RenderWorld(renderer* rin, game_state* state)
    r->heightmap = loadHeightMap("heightmaptest.bmp");
    r->heighttexture = createTexture("heightmaptest.bmp");
 
-   glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-   addGrid(r->Colors, r->heightmap, vec3(-20, -1, -20), 40.0f, 40.0f, 32, 32);
+   glUseProgram(r->BasicLightProgram);
+   bindUniform(r->BasicLightProgram, "proj", r->worldProj);
+   bindUniform(r->BasicLightProgram, "view", view);
+   bindUniform(r->BasicLightProgram, "model", IdentityMatrix());
+   bindUniform(r->BasicLightProgram, "objectColor", RGBA(242, 236, 218));
+   bindUniform(r->BasicLightProgram, "lightColor", vec4(0.7, 0.7, 0.7, 1));
+   bindUniform(r->BasicLightProgram, "lightPos", world->lightP);
+   bindUniform(r->BasicLightProgram, "viewPos", world->camera.p);
 
-   bindUniform(r->WorldProgram, "model", IdentityMatrix());
+   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+   addGrid(r->Colors, r->heightmap, vec3(-20, -10, -20), 40.0f, 40.0f, 32, 32);
+
    drawBufferElements(r->Colors, GL_TRIANGLES);
    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -1285,6 +1355,11 @@ void RenderUI(renderer* rin, game_state* state)
    x = 5;
    x += drawString(t, f, x, y, "Picked: ");
    x += drawInt(t, f, x, y, world->picked_cube);
+
+   y += f->size;
+   x = 5;
+   x += drawString(t, f, x, y, "Move Target: ");
+   x += drawInt(t, f, x, y, world->move_target);
 
    drawBufferElements(r->FontVertexBuffer, GL_TRIANGLES);
 
