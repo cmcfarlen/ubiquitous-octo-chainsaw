@@ -2,8 +2,9 @@
 #define _TYPES_H
 
 #ifdef _MSC_VER
-#define COMPILER_MSVC
 #include <intrin.h>
+#elif __clang__
+#include <x86intrin.h>
 #else
 #error Support other compilers
 #endif

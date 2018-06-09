@@ -16,6 +16,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb_truetype.h"
 
 #include "platform.h"
 
@@ -23,9 +25,97 @@ typedef struct
 {
     uint32 width;
     uint32 height;
+    int channels;  // 1,2,3,4 channels
     uint8* data;
     uint32 length;
 } TextureData;
+
+typedef struct FontData
+{
+   u8* imgData;
+   int w;
+   int h;
+   int firstChar;
+   int lastChar;
+   float sizes[10];  // Find the size you want in here and the index is the index in the baked char data
+   stbtt_bakedchar cdata[10][96];
+} FontData;
+
+FontData* loadFontTexture(int w, int h)
+{
+   u32 size = 0;
+   u8* ttfdata = Platform.slurp("monaco", "ttf", &size);
+   u8* imgData = Platform.allocateMemory(w*h);
+   
+   FontData* result = Platform.allocateMemory(sizeof(FontData));
+   result->imgData = imgData;
+   result->w = w;
+   result->h = h;
+   result->firstChar = 32;
+   result->lastChar = 96;
+   result->sizes[0] = 32.0;
+   stbtt_BakeFontBitmap(ttfdata,0, 32.0, imgData,w,h, 32,96, result->cdata[0]);
+   
+   return result;
+}
+
+stbtt_bakedchar* getBakedForSize(FontData* f, float sz)
+{
+   int idx = -1;
+   stbtt_bakedchar* result = f->cdata[0];
+   for (int i = 0; i < 10 && idx < 0; i++) {
+      if (sz >= f->sizes[i]) {
+         idx = i;
+      }
+   }
+   if (idx >= 0) {
+      result = f->cdata[idx];
+   }
+   
+   return result;
+}
+
+vector_float2 drawChar(FontData* data, float size, int c, vector_float2 p, UIVertex* dest)
+{
+   stbtt_bakedchar* baked = getBakedForSize(data, 32.0);
+   stbtt_aligned_quad q;
+   float x = p[0];
+   float y = p[1];
+   
+   stbtt_GetBakedQuad(baked, data->w, data->h, c - data->firstChar, &x, &y, &q, 1);
+   vector_float2 p0 = {q.x0, q.y0};
+   vector_float2 p1 = {q.x1, q.y0};
+   vector_float2 p2 = {q.x1, q.y1};
+   vector_float2 p3 = {q.x0, q.y1};
+   
+   vector_float2 t0 = {q.s0, q.t1};
+   vector_float2 t1 = {q.s1, q.t1};
+   vector_float2 t2 = {q.s1, q.t0};
+   vector_float2 t3 = {q.s0, q.t0};
+   
+   vector_float4 color = {1, 0, 0, 1};
+   
+   dest[0].position          = p0;
+   dest[0].textureCoordinate = t0;
+   dest[0].color = color;
+   dest[1].position          = p1;
+   dest[1].textureCoordinate = t1;
+   dest[1].color = color;
+   dest[2].position          = p3;
+   dest[2].textureCoordinate = t3;
+   dest[2].color = color;
+   dest[3].position          = p2;
+   dest[3].textureCoordinate = t2;
+   dest[3].color = color;
+   dest[4].position          = p3;
+   dest[4].textureCoordinate = t3;
+   dest[4].color = color;
+   dest[5].position          = p1;
+   dest[5].textureCoordinate = t1;
+   dest[5].color = color;
+   
+   return (vector_float2){x, y};
+}
 
 @implementation Renderer
 {
@@ -39,6 +129,8 @@ typedef struct
     NSUInteger _numVertices;
     
     id<MTLTexture> _texture;
+   
+   FontData* _fontData;
 }
 
 -(nonnull instancetype)initWithMetalKitView:(nonnull MTKView *)view;
@@ -50,27 +142,32 @@ typedef struct
         
         _device = view.device;
         
+        /*
         u32 sz = 0;
-        u8* imgData = Platform.slurp("Image", &sz);
+        u8* imgData = Platform.slurp("Image", "tga", &sz);
         int w, h, channels;
         
         u8* pixelData = stbi_load_from_memory(imgData, (int)sz, &w, &h, &channels, 4);
+        */
+        int w = 512;
+        int h = 512;
+        _fontData = loadFontTexture(w, h);
         
         MTLTextureDescriptor* textureDescriptor = [[MTLTextureDescriptor alloc] init];
         
-        textureDescriptor.pixelFormat = MTLPixelFormatRGBA8Unorm;
+        textureDescriptor.pixelFormat = MTLPixelFormatR8Unorm;
         
         textureDescriptor.width = w;
         textureDescriptor.height = h;
         
         _texture = [_device newTextureWithDescriptor:textureDescriptor];
-        NSUInteger bytesPerRow = 4 * w;
+        NSUInteger bytesPerRow = w;
         MTLRegion region = {
             {0, 0, 0},
             {w, h, 1}
         };
         
-        [_texture replaceRegion:region mipmapLevel:0 withBytes:pixelData bytesPerRow:bytesPerRow];
+        [_texture replaceRegion:region mipmapLevel:0 withBytes:_fontData->imgData bytesPerRow:bytesPerRow];
         
         id<MTLLibrary> defaultLibrary = [_device newDefaultLibrary];
         
@@ -82,6 +179,13 @@ typedef struct
         pipelineStateDescriptor.vertexFunction = uiVertexFunction;
         pipelineStateDescriptor.fragmentFunction = uiFragmentFunction;
         pipelineStateDescriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat;
+        pipelineStateDescriptor.colorAttachments[0].blendingEnabled = YES;
+        pipelineStateDescriptor.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
+        pipelineStateDescriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorSourceAlpha;
+        pipelineStateDescriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+        pipelineStateDescriptor.colorAttachments[0].rgbBlendOperation = MTLBlendOperationAdd;
+        pipelineStateDescriptor.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
+        pipelineStateDescriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
         
         _pipelineState = [_device newRenderPipelineStateWithDescriptor:pipelineStateDescriptor
                                                                  error:&error];
@@ -91,8 +195,18 @@ typedef struct
             return nil;
         }
       
-        NSData* vertexData = [Renderer generateVertexData];
-        
+       // NSData* vertexData = [Renderer generateVertexData];
+       NSUInteger dataSize = sizeof(UIVertex)  * 6 * 5;
+       NSMutableData *vertexData = [[NSMutableData alloc] initWithLength:dataSize];
+       
+       UIVertex* currentQuad = vertexData.mutableBytes;
+       vector_float2 p = {50, 50};
+       p = drawChar(_fontData, 32.0, 'H', p, currentQuad + 0);
+       p = drawChar(_fontData, 32.0, 'e', p, currentQuad + 6);
+       p = drawChar(_fontData, 32.0, 'l', p, currentQuad + 12);
+       p = drawChar(_fontData, 32.0, 'l', p, currentQuad + 18);
+       p = drawChar(_fontData, 32.0, 'o', p, currentQuad + 24);
+       
         _vertexBuffer = [_device newBufferWithLength:vertexData.length options:MTLResourceStorageModeShared];
         
         memcpy(_vertexBuffer.contents, vertexData.bytes, vertexData.length);
@@ -116,6 +230,8 @@ typedef struct
 
     if(renderPassDescriptor != nil) {
 
+        view.clearColor = (MTLClearColor){0.2f, 0.2f, 0.2f, 1.0f};
+        
         /// Final pass rendering code here
 
         id <MTLRenderCommandEncoder> renderEncoder =
@@ -156,16 +272,16 @@ typedef struct
     const UIVertex quadVertices[] =
     {
         // Pixel positions, RGBA colors
-        { { -20,   20 },    { 1, 0, 0, 1 }, { 0.0f, 1.0f } },
-        { {  20,   20 },    { 0, 0, 1, 1 }, { 1.0f, 1.0f }  },
-        { { -20,  -20 },    { 0, 1, 0, 1 }, { 0.0f, 0.0f }  },
+        { { -200,   200 },    { 1, 0, 0, 1 }, { 0.0f, 0.0f } },
+        { {  200,   200 },    { 0, 0, 1, 1 }, { 1.0f, 0.0f }  },
+        { { -200,  -200 },    { 0, 1, 0, 1 }, { 0.0f, 1.0f }  },
         
-        { {  20,  -20 },    { 1, 0, 0, 1 }, { 1.0f, 0.0f }  },
-        { { -20,  -20 },    { 0, 1, 0, 1 }, { 0.0f, 0.0f }  },
-        { {  20,   20 },    { 0, 0, 1, 1 }, { 1.0f, 1.0f }  },
+        { {  200,  -200 },    { 1, 0, 0, 1 }, { 1.0f, 1.0f }  },
+        { { -200,  -200 },    { 0, 1, 0, 1 }, { 0.0f, 1.0f }  },
+        { {  200,   200 },    { 0, 0, 1, 1 }, { 1.0f, 0.0f }  },
     };
-    const NSUInteger NUM_COLUMNS = 25;
-    const NSUInteger NUM_ROWS = 15;
+    const NSUInteger NUM_COLUMNS = 1;
+    const NSUInteger NUM_ROWS = 1;
     const NSUInteger NUM_VERTICES_PER_QUAD = sizeof(quadVertices) / sizeof(UIVertex);
     const float QUAD_SPACING = 50.0;
     

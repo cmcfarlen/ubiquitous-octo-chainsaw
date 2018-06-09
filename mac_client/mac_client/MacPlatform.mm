@@ -10,11 +10,11 @@
 
 #include "platform.h"
 
-u8* slurp(const char* resource, u32* size)
+u8* slurp(const char* resource, const char* type, u32* size)
 {
     NSError * error;
     NSURL *fileLocation = [[NSBundle mainBundle] URLForResource:[[NSString alloc] initWithUTF8String:resource]
-                                                       withExtension:@"tga"];
+                                                       withExtension:[[NSString alloc] initWithUTF8String:type]];
     NSData *fileData = [[NSData alloc] initWithContentsOfURL:fileLocation
                                                      options:0x0
                                                        error:&error];
