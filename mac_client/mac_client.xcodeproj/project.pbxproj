@@ -8,9 +8,11 @@
 
 /* Begin PBXBuildFile section */
 		C438B00520B1F6C500EFE119 /* MacPlatform.mm in Sources */ = {isa = PBXBuildFile; fileRef = C438B00420B1F6C500EFE119 /* MacPlatform.mm */; };
+		C44CBE2320CC509500B63859 /* Renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = C44CBE2220CC509500B63859 /* Renderer.mm */; };
+		C44CBE2620CC511800B63859 /* font.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C44CBE2420CC511800B63859 /* font.cpp */; };
+		C44CBE2920CC569C00B63859 /* stb_impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C44CBE2820CC569C00B63859 /* stb_impl.cpp */; };
 		C46F6C5820B27CC500BCD0DC /* monaco.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C46F6C5720B27CC500BCD0DC /* monaco.ttf */; };
 		C4B6BB9920B1DD5800767D71 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = C4B6BB9820B1DD5800767D71 /* AppDelegate.m */; };
-		C4B6BB9C20B1DD5800767D71 /* Renderer.m in Sources */ = {isa = PBXBuildFile; fileRef = C4B6BB9B20B1DD5800767D71 /* Renderer.m */; };
 		C4B6BB9F20B1DD5800767D71 /* GameViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = C4B6BB9E20B1DD5800767D71 /* GameViewController.m */; };
 		C4B6BBA120B1DD5800767D71 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = C4B6BBA020B1DD5800767D71 /* Shaders.metal */; };
 		C4B6BBA720B1DD5800767D71 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C4B6BBA520B1DD5800767D71 /* Main.storyboard */; };
@@ -22,17 +24,21 @@
 		C438B00420B1F6C500EFE119 /* MacPlatform.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MacPlatform.mm; sourceTree = "<group>"; };
 		C438B00620B1F71800EFE119 /* platform.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = platform.h; path = ../../code/platform.h; sourceTree = "<group>"; };
 		C438B00720B1F75100EFE119 /* stb_image.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stb_image.h; path = ../../code/stb_image.h; sourceTree = "<group>"; };
+		C44CBE2220CC509500B63859 /* Renderer.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = Renderer.mm; sourceTree = "<group>"; };
+		C44CBE2420CC511800B63859 /* font.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = font.cpp; path = ../../code/font.cpp; sourceTree = "<group>"; };
+		C44CBE2520CC511800B63859 /* font.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = font.h; path = ../../code/font.h; sourceTree = "<group>"; };
+		C44CBE2720CC51D500B63859 /* types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = types.h; path = ../../code/types.h; sourceTree = "<group>"; };
+		C44CBE2820CC569C00B63859 /* stb_impl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = stb_impl.cpp; path = ../../code/stb_impl.cpp; sourceTree = "<group>"; };
+		C44CBE2A20CC879E00B63859 /* matrix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = matrix.h; path = ../../code/matrix.h; sourceTree = "<group>"; };
 		C46F6C5620B2799800BCD0DC /* stb_truetype.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stb_truetype.h; path = ../../code/stb_truetype.h; sourceTree = "<group>"; };
 		C46F6C5720B27CC500BCD0DC /* monaco.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = monaco.ttf; sourceTree = "<group>"; };
 		C4B6BB9420B1DD5800767D71 /* mac_client.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mac_client.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C4B6BB9720B1DD5800767D71 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		C4B6BB9820B1DD5800767D71 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 		C4B6BB9A20B1DD5800767D71 /* Renderer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Renderer.h; sourceTree = "<group>"; };
-		C4B6BB9B20B1DD5800767D71 /* Renderer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Renderer.m; sourceTree = "<group>"; };
 		C4B6BB9D20B1DD5800767D71 /* GameViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GameViewController.h; sourceTree = "<group>"; };
 		C4B6BB9E20B1DD5800767D71 /* GameViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GameViewController.m; sourceTree = "<group>"; };
 		C4B6BBA020B1DD5800767D71 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; };
-		C4B6BBA220B1DD5800767D71 /* ShaderTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ShaderTypes.h; sourceTree = "<group>"; };
 		C4B6BBA620B1DD5800767D71 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		C4B6BBA820B1DD5800767D71 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		C4B6BBA920B1DD5800767D71 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
@@ -70,6 +76,12 @@
 		C4B6BB9620B1DD5800767D71 /* mac_client */ = {
 			isa = PBXGroup;
 			children = (
+				C44CBE2A20CC879E00B63859 /* matrix.h */,
+				C44CBE2820CC569C00B63859 /* stb_impl.cpp */,
+				C44CBE2720CC51D500B63859 /* types.h */,
+				C44CBE2420CC511800B63859 /* font.cpp */,
+				C44CBE2520CC511800B63859 /* font.h */,
+				C44CBE2220CC509500B63859 /* Renderer.mm */,
 				C46F6C5720B27CC500BCD0DC /* monaco.ttf */,
 				C46F6C5620B2799800BCD0DC /* stb_truetype.h */,
 				C438B00720B1F75100EFE119 /* stb_image.h */,
@@ -78,11 +90,9 @@
 				C4B6BB9720B1DD5800767D71 /* AppDelegate.h */,
 				C4B6BB9820B1DD5800767D71 /* AppDelegate.m */,
 				C4B6BB9A20B1DD5800767D71 /* Renderer.h */,
-				C4B6BB9B20B1DD5800767D71 /* Renderer.m */,
 				C4B6BB9D20B1DD5800767D71 /* GameViewController.h */,
 				C4B6BB9E20B1DD5800767D71 /* GameViewController.m */,
 				C4B6BBA020B1DD5800767D71 /* Shaders.metal */,
-				C4B6BBA220B1DD5800767D71 /* ShaderTypes.h */,
 				C4B6BBA520B1DD5800767D71 /* Main.storyboard */,
 				C4B6BBA820B1DD5800767D71 /* Info.plist */,
 				C4B6BBA920B1DD5800767D71 /* main.m */,
@@ -165,10 +175,12 @@
 			files = (
 				C4B6BBAA20B1DD5800767D71 /* main.m in Sources */,
 				C4B6BBA120B1DD5800767D71 /* Shaders.metal in Sources */,
-				C4B6BB9C20B1DD5800767D71 /* Renderer.m in Sources */,
+				C44CBE2620CC511800B63859 /* font.cpp in Sources */,
 				C4B6BB9F20B1DD5800767D71 /* GameViewController.m in Sources */,
 				C438B00520B1F6C500EFE119 /* MacPlatform.mm in Sources */,
+				C44CBE2320CC509500B63859 /* Renderer.mm in Sources */,
 				C4B6BB9920B1DD5800767D71 /* AppDelegate.m in Sources */,
+				C44CBE2920CC569C00B63859 /* stb_impl.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

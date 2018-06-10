@@ -5,7 +5,7 @@
 screen_font* createFont(int Width, int Height, const char* fontName)
 {
    u32 ttf_size;
-   u8*ttf = Platform.slurp(fontName, &ttf_size);
+   u8*ttf = Platform.slurp(fontName, "ttf", &ttf_size);
    u8* img = (u8*)malloc(Width*Height); //Platform.allocateMemory(Width*Height);
 
    screen_font* result = (screen_font*)malloc(sizeof(screen_font));
@@ -17,7 +17,7 @@ screen_font* createFont(int Width, int Height, const char* fontName)
    result->textureData = img;
 
 
-   u32 rows = 0;
+   int rows = 0;
    for (int i = 0; i < result->numSizes; i++) {
       screen_font_size* fs = result->sizes + i;
       f32 sz = sizes[i];
@@ -28,7 +28,7 @@ screen_font* createFont(int Width, int Height, const char* fontName)
       fs->width = Width;
       fs->height = Height;
 
-      u32 r = stbtt_BakeFontBitmap(ttf, 0, sz, img + Width * rows, Width, Height - rows, 32, 96, fs->cdata);
+      u32 r = stbtt_BakeFontBitmap(ttf, 0, sz, img + Width * rows, Width, (int)Height - rows, 32, 96, fs->cdata);
 
       for (int idx = 0; idx < 96; idx++) {
          fs->cdata[idx].y0 += (u16)rows;
@@ -65,7 +65,7 @@ f32 drawChar(vertex_buffer* b, screen_font_size* s, int c, f32 X, f32 Y)
 
    stbtt_GetBakedQuad(s->cdata, s->width, s->height, c - s->firstChar, &x, &y, &q, 1);
 
-   addTextured2DQuad(b, vec2(q.x0, q.y0), vec2(q.x1, q.y1), vec2(q.s0, q.t0), vec2(q.s1, q.t1));
+   addTextured2DQuad(b, Vec2(q.x0, q.y0), Vec2(q.x1, q.y1), Vec2(q.s0, q.t0), Vec2(q.s1, q.t1));
 
    return x - X;
 }
