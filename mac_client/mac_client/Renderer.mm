@@ -142,10 +142,6 @@ void initVertexBuffer(vertex_buffer* b, u32 max, id <MTLDevice> d)
 
         _device = view.device;
 
-        size_t u64size = sizeof(u64);
-        size_t u32size = sizeof(u32);
-        size_t u16size = sizeof(u16);
-
         u32 w = 512;
         u32 h = 512;
         _fontData = createFont((int)w, (int)h, "monaco");

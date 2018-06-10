@@ -18,22 +18,22 @@ void initializeWorld(game_world* world)
 
    world->move_target = 0;
 
-   world->camera.p = vec3(0, 0, 20);
-   world->camera.v = vec3(0, 0, 0);
+   world->camera.p = Vec3(0, 0, 20);
+   world->camera.v = Vec3(0, 0, 0);
    world->camera.pitch = 0;
    world->camera.yaw = 270.0;
 
    f32 w = 5.0;
    for (u32 i = 0; i < arraycount(world->cubes); i++)
    {
-      world->cubes[i].p = vec3(i * 2 * w, 0, 0);
-      world->cubes[i].dim = vec3(w, 2*w, w);
+      world->cubes[i].p = Vec3(i * 2 * w, 0, 0);
+      world->cubes[i].dim = Vec3(w, 2*w, w);
       world->cubes[i].angle = i * 0.25f;
    }
 
    world->picked_cube = 0;
 
-   world->lightP = vec3(5, 5, 5);
+   world->lightP = Vec3(5, 5, 5);
 }
 
 bool isDown(game_input* i, int button)
@@ -77,8 +77,8 @@ extern "C" {
       state->current_input = *input;
 
       if (letterDown(input, 'R')) {
-         state->world.camera.p = vec3(0, 0, 20);
-         state->world.camera.v = vec3(0, 0, 0);
+         state->world.camera.p = Vec3(0, 0, 20);
+         state->world.camera.v = Vec3(0, 0, 0);
          state->world.camera.pitch = 0.0f;
          state->world.camera.yaw = 270.0f;
       }
@@ -110,13 +110,13 @@ extern "C" {
       f32 w = 2.0;
       for (u32 i = 0; i < arraycount(world->cubes); i++)
       {
-         world->cubes[i].p = vec3(i * 2 * w, 0, 0);
-         world->cubes[i].dim = vec3(w, 2*w, w);
+         world->cubes[i].p = Vec3(i * 2 * w, 0, 0);
+         world->cubes[i].dim = Vec3(w, 2*w, w);
          world->cubes[i].angle += state->rate * input->dt;
       }
 
       // accelerate camera
-      vec3 f = vec3(0, 0, 0);
+      vec3 f = Vec3(0, 0, 0);
       if (isDown(input, BUTTON_FORWARD)) {
          f += directionFromYaw(state->world.camera.yaw);
       }
@@ -125,19 +125,19 @@ extern "C" {
       }
       if (isDown(input, BUTTON_LEFT)) {
          vec3 dir = directionFromYaw(state->world.camera.yaw);
-         vec3 right = cross(dir, vec3(0, 1, 0));
+         vec3 right = cross(dir, Vec3(0, 1, 0));
          f += -right;
       }
       if (isDown(input, BUTTON_RIGHT)) {
          vec3 dir = directionFromYaw(state->world.camera.yaw);
-         vec3 right = cross(dir, vec3(0, 1, 0));
+         vec3 right = cross(dir, Vec3(0, 1, 0));
          f += right;
       }
       if (isDown(input, BUTTON_UP)) {
-         f += vec3(0, 1, 0);
+         f += Vec3(0, 1, 0);
       }
       if (isDown(input, BUTTON_DOWN)) {
-         f += vec3(0, -1, 0);
+         f += Vec3(0, -1, 0);
       }
 
       f = normalize(f) * 50.0f;

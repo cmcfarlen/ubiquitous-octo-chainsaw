@@ -442,63 +442,63 @@ void addColoredCube(vertex_buffer* bin, vec3 origin, vec3 dim, vec4 color[6])
 
    // 8 vertices
    // front face
-   vtx[v+0].P = vec3(l, b, n);
+   vtx[v+0].P = Vec3(l, b, n);
    vtx[v+0].C = color[0];
-   vtx[v+1].P = vec3(r, b, n);
+   vtx[v+1].P = Vec3(r, b, n);
    vtx[v+1].C = color[0];
-   vtx[v+2].P = vec3(r, t, n);
+   vtx[v+2].P = Vec3(r, t, n);
    vtx[v+2].C = color[0];
-   vtx[v+3].P = vec3(l, t, n);
+   vtx[v+3].P = Vec3(l, t, n);
    vtx[v+3].C = color[0];
 
    // back face
-   vtx[v+4].P = vec3(r, b, f);
+   vtx[v+4].P = Vec3(r, b, f);
    vtx[v+4].C = color[1];
-   vtx[v+5].P = vec3(l, b, f);
+   vtx[v+5].P = Vec3(l, b, f);
    vtx[v+5].C = color[1];
-   vtx[v+6].P = vec3(l, t, f);
+   vtx[v+6].P = Vec3(l, t, f);
    vtx[v+6].C = color[1];
-   vtx[v+7].P = vec3(r, t, f);
+   vtx[v+7].P = Vec3(r, t, f);
    vtx[v+7].C = color[1];
 
    // top face
-   vtx[v+8].P = vec3(l, t, n);
+   vtx[v+8].P = Vec3(l, t, n);
    vtx[v+8].C = color[2];
-   vtx[v+9].P = vec3(l, t, f);
+   vtx[v+9].P = Vec3(l, t, f);
    vtx[v+9].C = color[2];
-   vtx[v+10].P = vec3(r, t, f);
+   vtx[v+10].P = Vec3(r, t, f);
    vtx[v+10].C = color[2];
-   vtx[v+11].P = vec3(r, t, n);
+   vtx[v+11].P = Vec3(r, t, n);
    vtx[v+11].C = color[2];
 
    // bottom face
-   vtx[v+12].P = vec3(l, b, n);
+   vtx[v+12].P = Vec3(l, b, n);
    vtx[v+12].C = color[3];
-   vtx[v+13].P = vec3(r, b, n);
+   vtx[v+13].P = Vec3(r, b, n);
    vtx[v+13].C = color[3];
-   vtx[v+14].P = vec3(r, b, f);
+   vtx[v+14].P = Vec3(r, b, f);
    vtx[v+14].C = color[3];
-   vtx[v+15].P = vec3(l, b, f);
+   vtx[v+15].P = Vec3(l, b, f);
    vtx[v+15].C = color[3];
 
    // right face
-   vtx[v+16].P = vec3(r, b, n);
+   vtx[v+16].P = Vec3(r, b, n);
    vtx[v+16].C = color[4];
-   vtx[v+17].P = vec3(r, b, f);
+   vtx[v+17].P = Vec3(r, b, f);
    vtx[v+17].C = color[4];
-   vtx[v+18].P = vec3(r, t, f);
+   vtx[v+18].P = Vec3(r, t, f);
    vtx[v+18].C = color[4];
-   vtx[v+19].P = vec3(r, t, n);
+   vtx[v+19].P = Vec3(r, t, n);
    vtx[v+19].C = color[4];
 
    // left face
-   vtx[v+20].P = vec3(l, b, n);
+   vtx[v+20].P = Vec3(l, b, n);
    vtx[v+20].C = color[5];
-   vtx[v+21].P = vec3(l, b, f);
+   vtx[v+21].P = Vec3(l, b, f);
    vtx[v+21].C = color[5];
-   vtx[v+22].P = vec3(l, t, f);
+   vtx[v+22].P = Vec3(l, t, f);
    vtx[v+22].C = color[5];
-   vtx[v+23].P = vec3(l, t, n);
+   vtx[v+23].P = Vec3(l, t, n);
    vtx[v+23].C = color[5];
 
    static int cube_indices[] = {
@@ -523,13 +523,13 @@ void addColored2DQuad(vertex_buffer* b, vec2 pll, vec2 pur, vec4 color)
    u32 v = b->vcnt;
    u32 i = b->icnt;
 
-   b->vertices[v+0].P = vec3(pur); // top right
+   b->vertices[v+0].P = Vec3(pur); // top right
    b->vertices[v+0].C = color;
-   b->vertices[v+1].P = vec3(pur.x, pll.y); // bottom right
+   b->vertices[v+1].P = Vec3(pur.x, pll.y); // bottom right
    b->vertices[v+1].C = color;
-   b->vertices[v+2].P = vec3(pll); // bottom left
+   b->vertices[v+2].P = Vec3(pll); // bottom left
    b->vertices[v+2].C = color;
-   b->vertices[v+3].P = vec3(pll.x, pur.y); // top left
+   b->vertices[v+3].P = Vec3(pll.x, pur.y); // top left
    b->vertices[v+3].C = color;
 
    b->indices[i+0] = v + 0;
@@ -642,13 +642,13 @@ void addTextured2DQuad(vertex_buffer* b, vec2 pll, vec2 pur, vec2 tll, vec2 tur)
    u32 v = b->vcnt;
    u32 i = b->icnt;
 
-   b->vertices[v+0].P = vec3(pll); // lower-left
+   b->vertices[v+0].P = Vec3(pll); // lower-left
    b->vertices[v+0].T = tll;
-   b->vertices[v+1].P = vec3(pur.x, pll.y); // lower right
+   b->vertices[v+1].P = Vec3(pur.x, pll.y); // lower right
    b->vertices[v+1].T = vec2(tur.x, tll.y);
-   b->vertices[v+2].P = vec3(pur); // upper-right
+   b->vertices[v+2].P = Vec3(pur); // upper-right
    b->vertices[v+2].T = tur;
-   b->vertices[v+3].P = vec3(pll.x, pur.y); // top left
+   b->vertices[v+3].P = Vec3(pll.x, pur.y); // top left
    b->vertices[v+3].T = vec2(tll.x, tur.y);
 
    b->indices[i+0] = v + 0;
@@ -710,9 +710,9 @@ void addGrid(vertex_buffer* b, height_map* hm, vec3 pt, f32 width, f32 height, i
             h += 0;
          }
          f32 y = 10 * (1.0f - h / 255.0f);
-         v[idx].P = pt + vec3(c * stepx, y, r * stepz);
+         v[idx].P = pt + Vec3(c * stepx, y, r * stepz);
          v[idx].C = color;
-         v[idx].N = vec3(0, 0, 0);
+         v[idx].N = Vec3(0, 0, 0);
       }
    }
 
@@ -1093,7 +1093,7 @@ void PickWorld(renderer* rin, game_state* state)
 
    vec3 dir = directionFromPitchYaw(camera->pitch, camera->yaw);
 
-   mat4 view = LookAt(camera->p, camera->p + dir, vec3(0, 1, 0));
+   mat4 view = LookAt(camera->p, camera->p + dir, Vec3(0, 1, 0));
 
    //mat4 view = rotationY(camera->yaw) * rotationX(camera->pitch) * translationMatrix(camera->p);
 
@@ -1112,7 +1112,7 @@ void PickWorld(renderer* rin, game_state* state)
    for (u32 i = 0; i < arraycount(world->cubes); i++)
    {
       cube* c = world->cubes + i;
-      addColoredCube(r->Colors, vec3(0, 0, 0), vec3(1, 1, 1), colors);
+      addColoredCube(r->Colors, Vec3(0, 0, 0), Vec3(1, 1, 1), colors);
       bindUniform(r->PickProgram, "model", translationMatrix(c->p) * scaleMatrix(c->dim) * rotationY(c->angle));
       bindUniform(r->PickProgram, "code", i + 1);
       drawBufferElements(r->Colors, GL_TRIANGLES);
@@ -1140,7 +1140,7 @@ void RenderWorld(renderer* rin, game_state* state)
 
    vec3 dir = directionFromPitchYaw(camera->pitch, camera->yaw);
 
-   mat4 view = LookAt(camera->p, camera->p + dir, vec3(0, 1, 0));
+   mat4 view = LookAt(camera->p, camera->p + dir, Vec3(0, 1, 0));
 
    //mat4 view = rotationY(camera->yaw) * rotationX(camera->pitch) * translationMatrix(camera->p);
 
@@ -1183,13 +1183,13 @@ void RenderWorld(renderer* rin, game_state* state)
          clrs = pcolors;
       }
       cube* c = world->cubes + i;
-      addColoredCube(r->Colors, vec3(0, 0, 0), vec3(1, 1, 1), clrs);
+      addColoredCube(r->Colors, Vec3(0, 0, 0), Vec3(1, 1, 1), clrs);
       bindUniform(r->WorldProgram, "model", translationMatrix(c->p) * scaleMatrix(c->dim) * rotationY(c->angle));
       drawBufferElements(r->Colors, GL_TRIANGLES);
    }
 
 
-   addColoredCube(r->Colors, vec3(0, 0, 0), vec3(0.5, 0.5, 0.5), wcolors);
+   addColoredCube(r->Colors, Vec3(0, 0, 0), Vec3(0.5, 0.5, 0.5), wcolors);
    bindUniform(r->WorldProgram, "model", translationMatrix(world->lightP));
    drawBufferElements(r->Colors, GL_TRIANGLES);
 
@@ -1211,7 +1211,7 @@ void RenderWorld(renderer* rin, game_state* state)
    bindUniform(r->BasicLightProgram, "viewPos", world->camera.p);
 
    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-   addGrid(r->Colors, r->heightmap, vec3(-20, -10, -20), 40.0f, 40.0f, 32, 32);
+   addGrid(r->Colors, r->heightmap, Vec3(-20, -10, -20), 40.0f, 40.0f, 32, 32);
 
    drawBufferElements(r->Colors, GL_TRIANGLES);
    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -1378,7 +1378,7 @@ void RenderUI(renderer* rin, game_state* state)
 
    vec4 plotColor = vec4(1, 0, 0.57, 1);
    for (f32 d = -10; d < 10.5; d += 0.25) {
-      addColoredVertex(r->Colors, vec3(d, sinf(d), 0), plotColor);
+      addColoredVertex(r->Colors, Vec3(d, sinf(d), 0), plotColor);
    }
    drawColoredVertexLineStrip(r->Colors);
 
