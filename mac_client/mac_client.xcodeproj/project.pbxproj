@@ -30,6 +30,7 @@
 		C44CBE2720CC51D500B63859 /* types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = types.h; path = ../../code/types.h; sourceTree = "<group>"; };
 		C44CBE2820CC569C00B63859 /* stb_impl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = stb_impl.cpp; path = ../../code/stb_impl.cpp; sourceTree = "<group>"; };
 		C44CBE2A20CC879E00B63859 /* matrix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = matrix.h; path = ../../code/matrix.h; sourceTree = "<group>"; };
+		C4638A9C20CDD02B0014DD3C /* game.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = game.h; path = ../../code/game.h; sourceTree = "<group>"; };
 		C46F6C5620B2799800BCD0DC /* stb_truetype.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stb_truetype.h; path = ../../code/stb_truetype.h; sourceTree = "<group>"; };
 		C46F6C5720B27CC500BCD0DC /* monaco.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = monaco.ttf; sourceTree = "<group>"; };
 		C4B6BB9420B1DD5800767D71 /* mac_client.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mac_client.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -76,6 +77,7 @@
 		C4B6BB9620B1DD5800767D71 /* mac_client */ = {
 			isa = PBXGroup;
 			children = (
+				C4638A9C20CDD02B0014DD3C /* game.h */,
 				C44CBE2A20CC879E00B63859 /* matrix.h */,
 				C44CBE2820CC569C00B63859 /* stb_impl.cpp */,
 				C44CBE2720CC51D500B63859 /* types.h */,
@@ -134,6 +136,11 @@
 					C4B6BB9320B1DD5800767D71 = {
 						CreatedOnToolsVersion = 9.2;
 						ProvisioningStyle = Automatic;
+						SystemCapabilities = {
+							com.apple.Sandbox = {
+								enabled = 0;
+							};
+						};
 					};
 				};
 			};
@@ -306,7 +313,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_WARN_COMMA = NO;
-				CODE_SIGN_ENTITLEMENTS = mac_client/mac_client.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				"HEADER_SEARCH_PATHS[arch=*]" = ../../code;
@@ -322,7 +328,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_WARN_COMMA = NO;
-				CODE_SIGN_ENTITLEMENTS = mac_client/mac_client.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_FILE = mac_client/Info.plist;

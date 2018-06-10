@@ -8,11 +8,15 @@
 
 #import <simd/simd.h>
 #import <ModelIO/ModelIO.h>
+#include <CoreServices/CoreServices.h>
+#include <dlfcn.h>
+#include <mach/mach_time.h>
 
 #import "Renderer.h"
 
 #include "platform.h"
 #include "font.h"
+#include "game.h"
 #include "matrix.h"
 
 #pragma pack(push, 1)
@@ -38,14 +42,22 @@ struct vertex_buffer
    MTLVertexDescriptor* vao;
 };
 
+f64 now()
+{
+   // I've been told this returns nanoseconds;
+   u64 n = mach_absolute_time();
+
+   return n / 1000000000.0;
+}
+
 void addTestTriangle(vertex_buffer* b)
 {
    u32 v = b->vcnt;
    u32 i = b->icnt;
 
-   b->vertices[v+0].P = (vec3){-0.5f, -0.5f, 0.0f};
-   b->vertices[v+1].P = (vec3){ 0.5f, -0.5f, 0.0f};
-   b->vertices[v+2].P = (vec3){0.0f, 0.5f, 0.0f};
+   b->vertices[v+0].P = (vec3){{-0.5f, -0.5f, 0.0f}};
+   b->vertices[v+1].P = (vec3){{ 0.5f, -0.5f, 0.0f}};
+   b->vertices[v+2].P = (vec3){{0.0f, 0.5f, 0.0f}};
 
    b->indices[i+0] = v + 0;
    b->indices[i+1] = v + 1;
@@ -131,14 +143,97 @@ void initVertexBuffer(vertex_buffer* b, u32 max, id <MTLDevice> d)
     id<MTLTexture> _texture;
 
     screen_font* _fontData;
+
+    bool _reloadFlag;
+    FSEventStreamRef stream;
+
+    // game API
+    void* code_handle;
+    game_api game;
+    game_state state;
+    game_input input;
+
+    f64 last_t;
 }
 
--(nonnull instancetype)initWithMetalKitView:(nonnull MTKView *)view;
+static void filewatch_callback(ConstFSEventStreamRef streamRef,
+                               void *clientCallBackInfo,
+                               size_t numEvents,
+                               void *eventPaths,
+                               const FSEventStreamEventFlags eventFlags[],
+                               const FSEventStreamEventId eventIds[])
+{
+
+    NSLog(@"Got filewatch callback");
+    [(__bridge Renderer*)clientCallBackInfo codeNeedsToReload];
+
+}
+
+-(void)codeNeedsToReload
+{
+   _reloadFlag = true;
+}
+
+-(void)reloadCode
+{
+   const char* path = "/Users/cmcfarlen/projects/ubiquitous-octo-chainsaw/build/game.dylib";
+
+   if (code_handle) {
+      dlclose(code_handle);
+   }
+
+   code_handle = dlopen(path, RTLD_NOW);
+
+   if (!code_handle) {
+      NSLog(@"Failed to open %s, error %s", path,  dlerror());
+   }
+
+   game.InitializeGame = (InitializeGame_t)dlsym(code_handle, "InitializeGame");
+   game.UpdateGameState = (UpdateGameState_t)dlsym(code_handle, "UpdateGameState");
+
+   if (game.InitializeGame == 0)
+   {
+      NSLog(@"Error loading game init code.");
+   }
+
+   if (game.UpdateGameState == 0)
+   {
+      NSLog(@"Error loading game update code.");
+   }
+}
+
+-(nonnull instancetype)initWithMetalKitView:(nonnull MTKView *)view
 {
     self = [super init];
     if(self)
     {
+
+        // Load game code and init game
+        [self reloadCode];
+
+        last_t = now();
+
+        state.Platform = Platform;
+        game.InitializeGame(&state);
+
         NSError* error = NULL;
+
+        // TODO: figure out how to find the directory to use (relative?)
+        NSString* cwd = [[NSString alloc] initWithUTF8String:"/Users/cmcfarlen/projects/ubiquitous-octo-chainsaw/build"];
+
+        CFStringRef watchpath = (__bridge CFStringRef)cwd;
+        NSLog(@"watch path: %@", watchpath);
+        CFArrayRef watcharray = CFArrayCreate(NULL, (const void**)&watchpath, 1, NULL);
+        CFRunLoopRef runloop = CFRunLoopGetCurrent();
+        FSEventStreamContext ctx = {0, (__bridge void *)(self), 0, 0, 0};
+
+        stream = FSEventStreamCreate(NULL, &filewatch_callback, &ctx, watcharray, kFSEventStreamEventIdSinceNow, 0.0, kFSEventStreamCreateFlagNone);
+
+        CFRelease(watcharray);
+
+        FSEventStreamScheduleWithRunLoop(stream, runloop, kCFRunLoopDefaultMode);
+
+        FSEventStreamStart(stream);
 
         _device = view.device;
 
@@ -203,53 +298,78 @@ void initVertexBuffer(vertex_buffer* b, u32 max, id <MTLDevice> d)
     commandBuffer.label = @"MyCommand";
 
 
+    if (_reloadFlag) {
+       NSLog(@"Code needs to reload!!!!");
+
+       [self reloadCode];
+
+       _reloadFlag = false;
+    }
+
+    NSPoint mouseP = [[view window] mouseLocationOutsideOfEventStream];
+    f64 now_t = now();
+    f64 dt = now_t - last_t;
+
+    last_t = now_t;
+
+    input.mouse_p = Vec2(mouseP.x, mouseP.y);
+    input.dt = (f32)dt;
+
+    game.UpdateGameState(&state, &input);
+
+
     /// Delay getting the currentRenderPassDescriptor until we absolutely need it to avoid
     ///   holding onto the drawable and blocking the display pipeline any longer than necessary
     MTLRenderPassDescriptor* renderPassDescriptor = view.currentRenderPassDescriptor;
 
     if(renderPassDescriptor != nil) {
 
-        view.clearColor = (MTLClearColor){0.2f, 0.2f, 0.2f, 1.0f};
+       view.clearColor = (MTLClearColor){0.2f, 0.2f, 0.2f, 1.0f};
 
-        /// Final pass rendering code here
+       /// Final pass rendering code here
 
        screen_font_size* fs = findFontSize(_fontData, 30);
-       drawString(&_vbuffer, fs, 50.0f, 50.0f, "Hello");
+       f32 cx = 50.0f;
+       f32 cy = 50.0f;
+       cx += drawString(&_vbuffer, fs, cx, cy, "Hello");
+       cx += drawVec2(&_vbuffer, fs, cx, cy, input.mouse_p);
 
-//       addTestTriangle(&_vbuffer);
+       cx += drawFloat(&_vbuffer, fs, cx, cy, input.dt, 4);
+
+       //       addTestTriangle(&_vbuffer);
 
        id <MTLRenderCommandEncoder> renderEncoder =
-        [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
-        renderEncoder.label = @"MyRenderEncoder";
+          [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
+       renderEncoder.label = @"MyRenderEncoder";
 
-        double x = (double)_viewport.x;
-        double y = (double)_viewport.y;
-        [renderEncoder setViewport:(MTLViewport){0.0, 0.0, x, y, -1.0, 1.0}];
+       double x = (double)_viewport.x;
+       double y = (double)_viewport.y;
+       [renderEncoder setViewport:(MTLViewport){0.0, 0.0, x, y, -1.0, 1.0}];
 
-        [renderEncoder setRenderPipelineState:_pipelineState];
+       [renderEncoder setRenderPipelineState:_pipelineState];
 
-        [renderEncoder setVertexBuffer:_vbuffer.buffers[0]
-                                offset:0
-                               atIndex:0];
+       [renderEncoder setVertexBuffer:_vbuffer.buffers[0]
+          offset:0
+             atIndex:0];
 
-        [renderEncoder setVertexBytes:&_proj
-                               length:sizeof(_proj)
-                              atIndex:1];
+       [renderEncoder setVertexBytes:&_proj
+          length:sizeof(_proj)
+             atIndex:1];
 
-        [renderEncoder setFragmentTexture:_texture atIndex:0];
+       [renderEncoder setFragmentTexture:_texture atIndex:0];
 
-        [renderEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+       [renderEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
                                  indexCount:_vbuffer.icnt
                                   indexType:MTLIndexTypeUInt32
                                 indexBuffer:_vbuffer.buffers[1]
                           indexBufferOffset:0];
 
-        _vbuffer.vcnt = 0;
-        _vbuffer.icnt = 0;
+       _vbuffer.vcnt = 0;
+       _vbuffer.icnt = 0;
 
-        [renderEncoder endEncoding];
+       [renderEncoder endEncoding];
 
-        [commandBuffer presentDrawable:view.currentDrawable];
+       [commandBuffer presentDrawable:view.currentDrawable];
     }
 
     [commandBuffer commit];
