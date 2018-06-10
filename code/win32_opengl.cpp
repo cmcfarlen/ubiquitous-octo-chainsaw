@@ -364,7 +364,7 @@ debug_system* GlobalDebug;
 
 void assertGL()
 {
-   GLenum err = glGetError();
+   //GLenum err = glGetError();
    //TODO: why does reloading the render dll return 0x500 from glGetError?
    //assert(err == GL_NO_ERROR);
 }
@@ -645,11 +645,11 @@ void addTextured2DQuad(vertex_buffer* b, vec2 pll, vec2 pur, vec2 tll, vec2 tur)
    b->vertices[v+0].P = Vec3(pll); // lower-left
    b->vertices[v+0].T = tll;
    b->vertices[v+1].P = Vec3(pur.x, pll.y); // lower right
-   b->vertices[v+1].T = vec2(tur.x, tll.y);
+   b->vertices[v+1].T = Vec2(tur.x, tll.y);
    b->vertices[v+2].P = Vec3(pur); // upper-right
    b->vertices[v+2].T = tur;
    b->vertices[v+3].P = Vec3(pll.x, pur.y); // top left
-   b->vertices[v+3].T = vec2(tll.x, tur.y);
+   b->vertices[v+3].T = Vec2(tll.x, tur.y);
 
    b->indices[i+0] = v + 0;
    b->indices[i+1] = v + 1;
@@ -665,14 +665,14 @@ void addTextured2DQuad(vertex_buffer* b, vec2 pll, vec2 pur, vec2 tll, vec2 tur)
 
 vec4 RGBA(int r, int g, int b, int a = 255)
 {
-   return vec4(r/255.0f, g/255.0f, b/255.0f, a/255.0f);
+   return Vec4(r/255.0f, g/255.0f, b/255.0f, a/255.0f);
 }
 
 height_map* loadHeightMap(const char* resource)
 {
    u32 hmsize = 0;
    int hmwidth, hmheight, hmchannels;
-   u8* heightmapfile = Platform.slurp(resource, &hmsize);
+   u8* heightmapfile = Platform.slurp(resource, "bmp", &hmsize);
 
    hmchannels = 0;
    u8* heightmap = (u8*)stbi_load_from_memory((stbi_uc const*)heightmapfile, (int)hmsize, &hmwidth, &hmheight, &hmchannels, 1);
@@ -771,9 +771,9 @@ GLuint compileShader(const char* vertexName, const char* fragmentName)
    char infoLog[512];
    
    u32 vertexShaderLength = 0;
-   char* vertexShaderSource = (char*)Platform.slurp(vertexName, &vertexShaderLength);
+   char* vertexShaderSource = (char*)Platform.slurp(vertexName, "vert", &vertexShaderLength);
    u32 fragmentShaderLength = 0;
-   char* fragmentShaderSource = (char*)Platform.slurp(fragmentName, &fragmentShaderLength);
+   char* fragmentShaderSource = (char*)Platform.slurp(fragmentName, "frag", &fragmentShaderLength);
 
    // shader shit
    vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -840,11 +840,8 @@ const char* addExtension(char* buff, int max, const char* name, const char* ext)
 
 GLuint compileShader(const char* name)
 {
-   char vertName[256];
-   char fragName[256];
-
-   return compileShader(addExtension(vertName, sizeof(vertName), name, "vert"),
-                        addExtension(fragName, sizeof(fragName), name, "frag"));
+   return compileShader(name,
+                        name);
 }
 
 bool bindUniform(GLuint program, const char* location, const mat4& matrix)
@@ -911,7 +908,7 @@ GLuint createTexture(u8* imageData, int width, int height, int channels, GLenum 
 GLuint createTexture(const char* resource)
 {
    u32 size = 0;
-   u8 *resourceData = Platform.slurp(resource, &size);
+   u8 *resourceData = Platform.slurp(resource, "bmp", &size);
    int width, height, channels;
    stbi_uc* imageData = stbi_load_from_memory((stbi_uc const*)resourceData, (int)size, &width, &height, &channels, 0);
 
@@ -1015,9 +1012,9 @@ bool InitializeRenderer(renderer* rin)
    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
-   r->TheFont = createFont(512, 512, "monaco.ttf");
+   r->TheFont = createFont(512, 512, "monaco");
    r->FontTexture = createTexture((u8*)r->TheFont->textureData, 512, 512, 1, GL_RED);
-   r->fontProgram = compileShader("font.vert", "font.frag");
+   r->fontProgram = compileShader("font");
    r->FontVertexBuffer = createVertexBuffer(512);
 
    r->ColorProgram = compileShader("solid");
@@ -1031,14 +1028,14 @@ bool InitializeRenderer(renderer* rin)
 
    r->uiProj = Ortho2D(0, (f32)vp->width, 0, (f32)vp->height, -1, 1);
    bindUniform(r->fontProgram, "proj", r->uiProj);
-   bindUniform(r->fontProgram, "color", vec4(1, 1, 1, 1));
+   bindUniform(r->fontProgram, "color", Vec4(1, 1, 1, 1));
 
    bindUniform(r->ColorProgram, "proj", Ortho2D(0, (f32)vp->width, (f32)vp->height, 0, -1, 1));
    //bindUniform(r->ColorProgram, "view", IdentityMatrix());
    bindUniform(r->ColorProgram, "view", PlotView(-10, 10, -1.5, 1.5, 502, 502, 200, 100));
 
-   r->heightmap = loadHeightMap("heightmaptest.bmp");
-   r->heighttexture = createTexture("heightmaptest.bmp");
+   r->heightmap = loadHeightMap("heightmaptest");
+   r->heighttexture = createTexture("heightmaptest");
 
    return true;
 }
@@ -1102,12 +1099,12 @@ void PickWorld(renderer* rin, game_state* state)
    bindUniform(r->PickProgram, "view", view);
 
    vec4 colors[6] = {
-      vec4(1, 0, 0, 1),
-      vec4(0, 1, 0, 1),
-      vec4(0, 0, 1, 1),
-      vec4(1, 1, 0, 1),
-      vec4(1, 0, 1, 1),
-      vec4(1, 0.5, 0.5, 1),
+      {1, 0, 0, 1},
+      {0, 1, 0, 1},
+      {0, 0, 1, 1},
+      {1, 1, 0, 1},
+      {1, 0, 1, 1},
+      {1, 0.5, 0.5, 1},
    };
    for (u32 i = 0; i < arraycount(world->cubes); i++)
    {
@@ -1149,24 +1146,24 @@ void RenderWorld(renderer* rin, game_state* state)
    bindUniform(r->WorldProgram, "view", view);
 
    vec4 colors[6] = {
-      vec4(1, 0, 0, 1),
-      vec4(0, 1, 0, 1),
-      vec4(0, 0, 1, 1),
-      vec4(1, 1, 0, 1),
-      vec4(1, 0, 1, 1),
-      vec4(1, 0.5, 0.5, 1),
+      {1, 0, 0, 1},
+      {0, 1, 0, 1},
+      {0, 0, 1, 1},
+      {1, 1, 0, 1},
+      {1, 0, 1, 1},
+      {1, 0.5, 0.5, 1},
    };
 
    vec4 pcolors[6] = {
-      vec4(1, 0, 1, 1),
-      vec4(1, 0, 0, 1),
-      vec4(1, 0, 0, 1),
-      vec4(1, 0, 0, 1),
-      vec4(1, 0, 0, 1),
-      vec4(1, 0, 0, 1),
+      {1, 0, 1, 1},
+      {1, 0, 0, 1},
+      {1, 0, 0, 1},
+      {1, 0, 0, 1},
+      {1, 0, 0, 1},
+      {1, 0, 0, 1},
    };
 
-   vec4 white = vec4(1, 1, 1, 1);
+   vec4 white = {1, 1, 1, 1};
    vec4 wcolors[6] = {
       white,
       white,
@@ -1198,15 +1195,15 @@ void RenderWorld(renderer* rin, game_state* state)
    glDeleteTextures(1, &r->heighttexture);
    freeHeightMap(r->heightmap);
 
-   r->heightmap = loadHeightMap("heightmaptest.bmp");
-   r->heighttexture = createTexture("heightmaptest.bmp");
+   r->heightmap = loadHeightMap("heightmaptest");
+   r->heighttexture = createTexture("heightmaptest");
 
    glUseProgram(r->BasicLightProgram);
    bindUniform(r->BasicLightProgram, "proj", r->worldProj);
    bindUniform(r->BasicLightProgram, "view", view);
    bindUniform(r->BasicLightProgram, "model", IdentityMatrix());
    bindUniform(r->BasicLightProgram, "objectColor", RGBA(242, 236, 218));
-   bindUniform(r->BasicLightProgram, "lightColor", vec4(0.7, 0.7, 0.7, 1));
+   bindUniform(r->BasicLightProgram, "lightColor", Vec4(0.7, 0.7, 0.7, 1));
    bindUniform(r->BasicLightProgram, "lightPos", world->lightP);
    bindUniform(r->BasicLightProgram, "viewPos", world->camera.p);
 
@@ -1364,7 +1361,7 @@ void RenderUI(renderer* rin, game_state* state)
    drawBufferElements(r->FontVertexBuffer, GL_TRIANGLES);
 
    glBindTexture(GL_TEXTURE_2D, r->heighttexture);
-   addTextured2DQuad(r->FontVertexBuffer, vec2(5, y+50), vec2(55, y+100), vec2(0, 0), vec2(1, 1));
+   addTextured2DQuad(r->FontVertexBuffer, Vec2(5, y+50), Vec2(55, y+100), Vec2(0, 0), Vec2(1, 1));
    drawBufferElements(r->FontVertexBuffer, GL_TRIANGLES);
    /*
    // draw ui plots

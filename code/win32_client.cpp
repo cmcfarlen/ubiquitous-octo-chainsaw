@@ -30,11 +30,11 @@ void log(const char* fmt, ...)
 	OutputDebugStringA(buff);
 }
 
-u8* slurp(const char* resource, u32* size)
+u8* slurp(const char* resource, const char* type, u32* size)
 {
    char path[512];
 
-   StringCbPrintfA(path, sizeof(path), "..\\data\\%s", resource);
+   StringCbPrintfA(path, sizeof(path), "..\\data\\%s.%s", resource, type);
 
    HANDLE h = CreateFile(path, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
    LARGE_INTEGER fs = {};
@@ -43,7 +43,7 @@ u8* slurp(const char* resource, u32* size)
 
    *size = fs.LowPart;
    u32 toRead = *size;
-   u32 bc = 0;
+   unsigned long bc = 0;
    u8* data = (u8*)malloc(*size + 1);
 
    ReadFile(h, data, toRead, &bc, 0);
@@ -239,7 +239,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
       int yPos = (lParam >> 16) & 0xffff;
 
       GlobalInput.mouse_buttons_down[MOUSE_BUTTON1] = 1;
-      GlobalInput.mouse_down_p = vec2((f32)xPos, (f32)yPos);
+      GlobalInput.mouse_down_p = Vec2((f32)xPos, (f32)yPos);
 
       break;
    }
@@ -248,7 +248,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
       int xPos = lParam & 0xffff;
       int yPos = (lParam >> 16) & 0xffff;
 
-      vec2 mp = vec2((f32)xPos, (f32)yPos);
+      vec2 mp = Vec2((f32)xPos, (f32)yPos);
 
       if (mp == GlobalInput.mouse_down_p) {
          GlobalInput.mouse_buttons_click[MOUSE_BUTTON1] = 1;
@@ -441,8 +441,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
    GetCursorPos(&cursorPt);
    ScreenToClient(window, &cursorPt);
-   GlobalInput.mouse_p = vec2((f32)cursorPt.x, (f32)cursorPt.y);
-   GlobalInput.mouse_dp = vec2(0, 0);
+   GlobalInput.mouse_p = Vec2((f32)cursorPt.x, (f32)cursorPt.y);
+   GlobalInput.mouse_dp = Vec2(0, 0);
    setupKeymappings(keymappings);
 
 	int running = 1;
@@ -483,7 +483,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
          LONGLONG diff = now.QuadPart - prev.QuadPart;
          prev = now;
          float dt = (float)diff / (float)perffreq.QuadPart;
-         vec2 mouse_p = vec2((f32)cursorPt.x, (f32)cursorPt.y);
+         vec2 mouse_p = Vec2((f32)cursorPt.x, (f32)cursorPt.y);
 
          GlobalInput.dt = dt;
 
