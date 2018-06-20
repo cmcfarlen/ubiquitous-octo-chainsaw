@@ -4,10 +4,7 @@
 #include "types.h"
 #include "stb_truetype.h"
 #include "vector.h"
-
-// TODO: general vertex buffer code
-struct vertex_buffer;
-void addTextured2DQuad(vertex_buffer* b, vec2 pll, vec2 pur, vec2 tll, vec2 tur);
+#include "vertex_buffer.h"
 
 
 struct screen_font_size

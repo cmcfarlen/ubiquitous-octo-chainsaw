@@ -18,28 +18,16 @@
 #include "font.h"
 #include "game.h"
 #include "matrix.h"
+#include "vertex_buffer.h"
 
-#pragma pack(push, 1)
-struct vertex
+struct metal_vertex_buffer
 {
-   vec3 P;
-   vec2 T;
-   vec4 C;
-   vec3 N;
-};
-#pragma pack(pop)
-
-struct vertex_buffer
-{
-   u32 max;
-   u32 vcnt;
-   u32 icnt;
-   vertex* vertices;
-   u32* indices;
+   vertex_buffer b;
 
    // metal stuff
    id <MTLBuffer> buffers[2];
    MTLVertexDescriptor* vao;
+   id <MTLRenderCommandEncoder> renderEncoder;
 };
 
 f64 now()
@@ -50,82 +38,60 @@ f64 now()
    return n / 1000000000.0;
 }
 
-void addTestTriangle(vertex_buffer* b)
+void initVertexBuffer(metal_vertex_buffer* vb, u32 max, id <MTLDevice> d)
 {
-   u32 v = b->vcnt;
-   u32 i = b->icnt;
 
-   b->vertices[v+0].P = (vec3){{-0.5f, -0.5f, 0.0f}};
-   b->vertices[v+1].P = (vec3){{ 0.5f, -0.5f, 0.0f}};
-   b->vertices[v+2].P = (vec3){{0.0f, 0.5f, 0.0f}};
-
-   b->indices[i+0] = v + 0;
-   b->indices[i+1] = v + 1;
-   b->indices[i+2] = v + 2;
-
-   b->vcnt += 3;
-   b->icnt += 3;
-}
-
-void addTextured2DQuad(vertex_buffer* b, vec2 pll, vec2 pur, vec2 tll, vec2 tur)
-{
-   u32 v = b->vcnt;
-   u32 i = b->icnt;
-
-   b->vertices[v+0].P = Vec3(pll); // lower-left
-   b->vertices[v+0].T = tll;
-   b->vertices[v+1].P = Vec3(pur.x, pll.y); // lower right
-   b->vertices[v+1].T = Vec2(tur.x, tll.y);
-   b->vertices[v+2].P = Vec3(pur); // upper-right
-   b->vertices[v+2].T = tur;
-   b->vertices[v+3].P = Vec3(pll.x, pur.y); // top left
-   b->vertices[v+3].T = Vec2(tll.x, tur.y);
-
-   b->indices[i+0] = v + 0;
-   b->indices[i+1] = v + 1;
-   b->indices[i+2] = v + 2;
-   b->indices[i+3] = v + 0;
-   b->indices[i+4] = v + 2;
-   b->indices[i+5] = v + 3;
-
-   b->vcnt += 4;
-   b->icnt += 6;
-}
-
-void initVertexBuffer(vertex_buffer* b, u32 max, id <MTLDevice> d)
-{
+   vertex_buffer* b = &vb->b;
    b->max = max;
    b->vcnt = 0;
    b->icnt = 0;
 
-   b->buffers[0] = [d newBufferWithLength:max*sizeof(vertex) options:MTLResourceStorageModeShared];
-   b->buffers[1] = [d newBufferWithLength:max*6*sizeof(u32) options:MTLResourceStorageModeShared];
+   b->p = vb;
 
-   b->vertices = (vertex*)b->buffers[0].contents;
-   b->indices = (u32*)b->buffers[1].contents;
+   vb->buffers[0] = [d newBufferWithLength:max*sizeof(vertex) options:MTLResourceStorageModeShared];
+   vb->buffers[1] = [d newBufferWithLength:max*6*sizeof(u32) options:MTLResourceStorageModeShared];
 
-   b->vao = [[MTLVertexDescriptor alloc] init];
+   b->vertices = (vertex*)vb->buffers[0].contents;
+   b->indices = (u32*)vb->buffers[1].contents;
+
+   vb->vao = [[MTLVertexDescriptor alloc] init];
    // P
-   b->vao.attributes[0].format = MTLVertexFormatFloat3;
-   b->vao.attributes[0].offset = 0;
-   b->vao.attributes[0].bufferIndex = 0;
+   vb->vao.attributes[0].format = MTLVertexFormatFloat3;
+   vb->vao.attributes[0].offset = 0;
+   vb->vao.attributes[0].bufferIndex = 0;
    // T
-   b->vao.attributes[1].format = MTLVertexFormatFloat2;
-   b->vao.attributes[1].offset = 3 * sizeof(f32);
-   b->vao.attributes[1].bufferIndex = 0;
+   vb->vao.attributes[1].format = MTLVertexFormatFloat2;
+   vb->vao.attributes[1].offset = 3 * sizeof(f32);
+   vb->vao.attributes[1].bufferIndex = 0;
    // C
-   b->vao.attributes[2].format = MTLVertexFormatFloat4;
-   b->vao.attributes[2].offset = 5 * sizeof(f32);
-   b->vao.attributes[2].bufferIndex = 0;
+   vb->vao.attributes[2].format = MTLVertexFormatFloat4;
+   vb->vao.attributes[2].offset = 5 * sizeof(f32);
+   vb->vao.attributes[2].bufferIndex = 0;
    // N
-   b->vao.attributes[3].format = MTLVertexFormatFloat3;
-   b->vao.attributes[3].offset = 9 * sizeof(f32);
-   b->vao.attributes[3].bufferIndex = 0;
+   vb->vao.attributes[3].format = MTLVertexFormatFloat3;
+   vb->vao.attributes[3].offset = 9 * sizeof(f32);
+   vb->vao.attributes[3].bufferIndex = 0;
 
-   b->vao.layouts[0].stride = sizeof(vertex);
-   b->vao.layouts[0].stepRate = 1;
-   b->vao.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
+   vb->vao.layouts[0].stride = sizeof(vertex);
+   vb->vao.layouts[0].stepRate = 1;
+   vb->vao.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
 }
+
+void drawBufferElements(vertex_buffer* tvb, PrimitiveType prim)
+{
+   metal_vertex_buffer* mvb = (metal_vertex_buffer*)tvb->p;
+
+   [mvb->renderEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+                                  indexCount:tvb->icnt
+                                   indexType:MTLIndexTypeUInt32
+                                 indexBuffer:mvb->buffers[1]
+                           indexBufferOffset:0];
+}
+
+void drawBuffer(vertex_buffer* tvb, PrimitiveType prim)
+{
+}
+
 
 @implementation Renderer
 {
@@ -136,7 +102,7 @@ void initVertexBuffer(vertex_buffer* b, u32 max, id <MTLDevice> d)
 
     vector_uint2 _viewport;
 
-    vertex_buffer _vbuffer;
+    metal_vertex_buffer _vbuffer;
 
     mat4 _proj;
 
@@ -306,6 +272,9 @@ static void filewatch_callback(ConstFSEventStreamRef streamRef,
        _reloadFlag = false;
     }
 
+    vertex_buffer *vb = &_vbuffer.b;
+    NSUInteger pressedButtons = [NSEvent pressedMouseButtons];
+
     NSPoint mouseP = [[view window] mouseLocationOutsideOfEventStream];
     f64 now_t = now();
     f64 dt = now_t - last_t;
@@ -327,20 +296,20 @@ static void filewatch_callback(ConstFSEventStreamRef streamRef,
        view.clearColor = (MTLClearColor){0.2f, 0.2f, 0.2f, 1.0f};
 
        /// Final pass rendering code here
+       id <MTLRenderCommandEncoder> renderEncoder =
+          [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
+       renderEncoder.label = @"MyRenderEncoder";
+
+       _vbuffer.renderEncoder = renderEncoder;
 
        screen_font_size* fs = findFontSize(_fontData, 30);
        f32 cx = 50.0f;
        f32 cy = 50.0f;
-       cx += drawString(&_vbuffer, fs, cx, cy, "Hello");
-       cx += drawVec2(&_vbuffer, fs, cx, cy, input.mouse_p);
+       cx += drawString(vb, fs, cx, cy, "Hello");
+       cx += drawVec2(vb, fs, cx, cy, input.mouse_p);
 
-       cx += drawFloat(&_vbuffer, fs, cx, cy, input.dt, 4);
+       cx += drawFloat(vb, fs, cx, cy, input.dt, 4);
 
-       //       addTestTriangle(&_vbuffer);
-
-       id <MTLRenderCommandEncoder> renderEncoder =
-          [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
-       renderEncoder.label = @"MyRenderEncoder";
 
        double x = (double)_viewport.x;
        double y = (double)_viewport.y;
@@ -359,13 +328,13 @@ static void filewatch_callback(ConstFSEventStreamRef streamRef,
        [renderEncoder setFragmentTexture:_texture atIndex:0];
 
        [renderEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
-                                 indexCount:_vbuffer.icnt
+                                 indexCount:_vbuffer.b.icnt
                                   indexType:MTLIndexTypeUInt32
                                 indexBuffer:_vbuffer.buffers[1]
                           indexBufferOffset:0];
 
-       _vbuffer.vcnt = 0;
-       _vbuffer.icnt = 0;
+       _vbuffer.b.vcnt = 0;
+       _vbuffer.b.icnt = 0;
 
        [renderEncoder endEncoding];
 

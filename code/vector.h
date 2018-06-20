@@ -63,56 +63,56 @@ struct rect
 inline
 vec2 Vec2(f32 X, f32 Y)
 {
-   vec2 r = {X, Y};
+   vec2 r = {{X, Y}};
    return r;
 }
 
 inline
 vec2 Vec3(const vec3& v)
 {
-   vec2 r = {v.x, v.y};
+   vec2 r = {{v.x, v.y}};
    return r;
 }
 
 inline
 vec3 Vec3(f32 X, f32 Y)
 {
-   vec3 r = {X, Y, 0};
+   vec3 r = {{X, Y, 0}};
    return r;
 }
 
 inline
 vec3 Vec3(f32 X, f32 Y, f32 Z)
 {
-   vec3 r = {X, Y, Z};
+   vec3 r = {{X, Y, Z}};
    return r;
 }
 
 inline
 vec3 Vec3(vec2& v)
 {
-   vec3 r = {v.x, v.y, 0};
+   vec3 r = {{v.x, v.y, 0}};
    return r;
 }
 
 inline
 vec3 Vec3(vec2& v, f32 Z)
 {
-   vec3 r = {v.x, v.y, Z};
+   vec3 r = {{v.x, v.y, Z}};
    return r;
 }
 
 inline
 vec4 Vec4(f32 R, f32 G, f32 B, f32 A)
 {
-   vec4 r = {R, G, B, A};
+   vec4 r = {{R, G, B, A}};
    return r;
 };
 
 inline
 rect Rect2(f32 x1, f32 y1, f32 x2, f32 y2)
 {
-   rect r = {{x1, y1}, {x2, y2}};
+   rect r = {{{x1, y1}}, {{x2, y2}}};
    return r;
 }
 
@@ -146,7 +146,7 @@ vec3 normalize(vec3 v)
 {
    float m = magnitude(v);
    if (m > EPSILON) {
-      vec3 r = { v.x / m, v.y / m, v.z / m };
+      vec3 r = {{ v.x / m, v.y / m, v.z / m }};
       return r;
    }
    return v;
@@ -155,14 +155,14 @@ vec3 normalize(vec3 v)
 inline
 vec3 mul(vec3 a, float b)
 {
-   vec3 r = { a.x * b, a.y * b, a.z * b };
+   vec3 r = {{ a.x * b, a.y * b, a.z * b }};
    return r;
 }
 
 inline
 vec3 add(vec3 a, vec3 b)
 {
-   vec3 r = { a.x + b.x, a.y + b.y, a.z + b.z };
+   vec3 r = {{ a.x + b.x, a.y + b.y, a.z + b.z }};
    return r;
 }
 
@@ -181,35 +181,35 @@ vec3 cross(vec3 a, vec3 b)
 inline
 vec3 operator+(vec3 a, vec3 b)
 {
-   vec3 r = { a.x + b.x, a.y + b.y, a.z + b.z };
+   vec3 r = {{ a.x + b.x, a.y + b.y, a.z + b.z }};
    return r;
 }
 
 inline
 vec3 operator-(vec3 a, vec3 b)
 {
-   vec3 r = { a.x - b.x, a.y - b.y, a.z - b.z };
+   vec3 r = {{ a.x - b.x, a.y - b.y, a.z - b.z }};
    return r;
 }
 
 inline
 vec3 operator-(const vec3& a)
 {
-   vec3 r = { -a.x, -a.y, -a.z };
+   vec3 r = {{ -a.x, -a.y, -a.z }};
    return r;
 }
 
 inline
 vec3 operator*(vec3 a, float b)
 {
-   vec3 r = { a.x * b, a.y * b, a.z * b };
+   vec3 r = {{ a.x * b, a.y * b, a.z * b }};
    return r;
 }
 
 inline
 vec2 operator*(vec2 a, float b)
 {
-   vec2 r = { a.x * b, a.y * b };
+   vec2 r = {{ a.x * b, a.y * b }};
    return r;
 }
 

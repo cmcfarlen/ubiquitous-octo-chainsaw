@@ -18,6 +18,7 @@
 		C4B6BBA720B1DD5800767D71 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C4B6BBA520B1DD5800767D71 /* Main.storyboard */; };
 		C4B6BBAA20B1DD5800767D71 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = C4B6BBA920B1DD5800767D71 /* main.m */; };
 		C4B6BBB520B1F54400767D71 /* Image.tga in Resources */ = {isa = PBXBuildFile; fileRef = C4B6BBB420B1F54400767D71 /* Image.tga */; };
+		C4E6792620DA095C00DE0099 /* vertex_buffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C4E6792420DA095B00DE0099 /* vertex_buffer.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -45,6 +46,8 @@
 		C4B6BBA920B1DD5800767D71 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		C4B6BBAB20B1DD5800767D71 /* mac_client.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = mac_client.entitlements; sourceTree = "<group>"; };
 		C4B6BBB420B1F54400767D71 /* Image.tga */ = {isa = PBXFileReference; lastKnownFileType = file; path = Image.tga; sourceTree = "<group>"; };
+		C4E6792420DA095B00DE0099 /* vertex_buffer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = vertex_buffer.cpp; path = ../../code/vertex_buffer.cpp; sourceTree = "<group>"; };
+		C4E6792520DA095C00DE0099 /* vertex_buffer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = vertex_buffer.h; path = ../../code/vertex_buffer.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -77,6 +80,8 @@
 		C4B6BB9620B1DD5800767D71 /* mac_client */ = {
 			isa = PBXGroup;
 			children = (
+				C4E6792420DA095B00DE0099 /* vertex_buffer.cpp */,
+				C4E6792520DA095C00DE0099 /* vertex_buffer.h */,
 				C4638A9C20CDD02B0014DD3C /* game.h */,
 				C44CBE2A20CC879E00B63859 /* matrix.h */,
 				C44CBE2820CC569C00B63859 /* stb_impl.cpp */,
@@ -181,6 +186,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C4B6BBAA20B1DD5800767D71 /* main.m in Sources */,
+				C4E6792620DA095C00DE0099 /* vertex_buffer.cpp in Sources */,
 				C4B6BBA120B1DD5800767D71 /* Shaders.metal in Sources */,
 				C44CBE2620CC511800B63859 /* font.cpp in Sources */,
 				C4B6BB9F20B1DD5800767D71 /* GameViewController.m in Sources */,

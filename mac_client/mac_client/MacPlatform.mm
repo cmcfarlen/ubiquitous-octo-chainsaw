@@ -22,7 +22,7 @@ u8* slurp(const char* resource, const char* type, u32* size)
     u8* result = (u8*)malloc(fileData.length);
     
     memcpy(result, fileData.bytes, fileData.length);
-    *size = fileData.length;
+    *size = (u32)fileData.length;
     return result;
 }
 
