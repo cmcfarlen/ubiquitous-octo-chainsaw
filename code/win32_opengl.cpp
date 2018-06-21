@@ -311,23 +311,10 @@ void LoadGL()
 // renderer implementation
 //
 
-#pragma pack(push, 1)
-struct vertex
+struct opengl_vertex_buffer
 {
-   vec3 P;
-   vec2 T;
-   vec4 C;
-   vec3 N;
-};
-#pragma pack(pop)
+   vertex_buffer b;
 
-struct vertex_buffer
-{
-   u32 max;
-   u32 vcnt;
-   u32 icnt;
-   vertex* vertices;
-   u32* indices;
    unsigned int buffers[2];
    unsigned int vao;
 };
@@ -371,15 +358,17 @@ void assertGL()
 
 vertex_buffer* createVertexBuffer(u32 max)
 {
-   vertex_buffer* result = (vertex_buffer*)malloc(sizeof(vertex_buffer));
+   opengl_vertex_buffer* result = (opengl_vertex_buffer*)malloc(sizeof(opengl_vertex_buffer));
+
    vertex* vertices = (vertex*)malloc(max * sizeof(vertex));
    u32* indices = (u32*)malloc(max * 6 * sizeof(u32));
 
-   result->max = max;
-   result->vcnt = 0;
-   result->icnt = 0;
-   result->vertices = vertices;
-   result->indices = indices;
+   result->b.max = max;
+   result->b.vcnt = 0;
+   result->b.icnt = 0;
+   result->b.vertices = vertices;
+   result->b.indices = indices;
+   result->b.p = result;
 
    glGenBuffers(2, result->buffers);
    glGenVertexArrays(1, &result->vao);
@@ -408,100 +397,52 @@ vertex_buffer* createVertexBuffer(u32 max)
 
    glBindVertexArray(0);
 
-   return result;
+   return &result->b;
 }
 
-void freeVertexBuffer(vertex_buffer* tvb)
+void freeVertexBuffer(vertex_buffer* vb)
 {
+   opengl_vertex_buffer* tvb = (opengl_vertex_buffer*)vb->p;
    glDeleteBuffers(2, tvb->buffers);
    glDeleteVertexArrays(1, &tvb->vao);
-   free(tvb->indices);
-   free(tvb->vertices);
+   free(tvb->b.indices);
+   free(tvb->b.vertices);
    free(tvb);
 }
 
 
-void drawBufferElements(vertex_buffer* tvb, GLenum prim)
+void drawBufferElements(vertex_buffer* vb, GLenum prim)
 {
+   opengl_vertex_buffer* tvb = (opengl_vertex_buffer*)vb->p;
    glBindVertexArray(tvb->vao);
 
    glBindBuffer(GL_ARRAY_BUFFER, tvb->buffers[0]);
-   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(vertex), tvb->vertices);
+   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->b.vcnt * sizeof(vertex), tvb->b.vertices);
 
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tvb->buffers[1]);
-   glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, tvb->icnt * sizeof(u32), tvb->indices);
+   glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, tvb->b.icnt * sizeof(u32), tvb->b.indices);
 
-   glDrawElements(prim, tvb->icnt, GL_UNSIGNED_INT, 0);
+   glDrawElements(prim, tvb->b.icnt, GL_UNSIGNED_INT, 0);
 
-   tvb->vcnt = 0;
-   tvb->icnt = 0;
+   tvb->b.vcnt = 0;
+   tvb->b.icnt = 0;
 }
 
-void drawBuffer(vertex_buffer* tvb, GLenum prim)
+void drawBuffer(vertex_buffer* vb, GLenum prim)
 {
+   opengl_vertex_buffer* tvb = (opengl_vertex_buffer*)vb->p;
    glBindVertexArray(tvb->vao);
 
    glBindBuffer(GL_ARRAY_BUFFER, tvb->buffers[0]);
-   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(vertex), tvb->vertices);
+   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->b.vcnt * sizeof(vertex), tvb->b.vertices);
    assertGL();
 
-   glDrawArrays(prim, 0, tvb->vcnt);
+   glDrawArrays(prim, 0, tvb->b.vcnt);
    assertGL();
 
-   tvb->vcnt = 0;
-   tvb->icnt = 0;
+   tvb->b.vcnt = 0;
+   tvb->b.icnt = 0;
 }
-
-#if 0
-void drawColoredVertexTriangles(vertex_buffer* tvb)
-{
-   glBindVertexArray(tvb->vao);
-
-   glBindBuffer(GL_ARRAY_BUFFER, tvb->buffers[0]);
-   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(vertex), tvb->vertices);
-
-   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tvb->buffers[1]);
-   glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, tvb->icnt * sizeof(u32), tvb->indices);
-
-   glDrawElements(GL_TRIANGLES, tvb->icnt, GL_UNSIGNED_INT, 0);
-
-   tvb->vcnt = 0;
-   tvb->icnt = 0;
-}
-
-void drawColoredVertexLineStrip(vertex_buffer* tvb)
-{
-   glBindVertexArray(tvb->vao);
-
-   glBindBuffer(GL_ARRAY_BUFFER, tvb->buffers[0]);
-   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(vertex), tvb->vertices);
-   assertGL();
-
-   glDrawArrays(GL_LINE_STRIP, 0, tvb->vcnt);
-   assertGL();
-
-   tvb->vcnt = 0;
-   tvb->icnt = 0;
-}
-
-void drawTexturedVertexBuffer(vertex_buffer* tvb)
-{
-   glBindVertexArray(tvb->vao);
-
-   glBindBuffer(GL_ARRAY_BUFFER, tvb->buffers[0]);
-   glBufferData(GL_ARRAY_BUFFER, tvb->max * sizeof(vertex), 0, GL_STREAM_DRAW);
-   glBufferSubData(GL_ARRAY_BUFFER, 0, tvb->vcnt * sizeof(vertex), tvb->vertices);
-
-   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tvb->buffers[1]);
-   glBufferData(GL_ELEMENT_ARRAY_BUFFER, tvb->max * 2 * sizeof(u32), 0, GL_STREAM_DRAW);
-   glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, tvb->icnt * sizeof(u32), tvb->indices);
-
-   glDrawElements(GL_TRIANGLES, tvb->icnt, GL_UNSIGNED_INT, 0);
-
-   tvb->vcnt = 0;
-   tvb->icnt = 0;
-}
-#endif
 
 vec4 RGBA(int r, int g, int b, int a = 255)
 {
@@ -763,6 +704,16 @@ GLuint createTexture(const char* resource)
 #include "font.cpp"
 #include "vertex_buffer.cpp"
 
+void drawBufferElements(vertex_buffer* tvb, PrimitiveType)
+{
+   drawBufferElements(tvb, GL_TRIANGLES);
+}
+
+void drawBuffer(vertex_buffer* tvb, PrimitiveType)
+{
+   drawBuffer(tvb, GL_TRIANGLES);
+}
+
 // dll api for win32 renderer management
 extern "C" {
 
@@ -848,10 +799,7 @@ bool InitializeRenderer(renderer* rin)
    renderer_implementation *r = rin->impl;
    screen_viewport* vp = &rin->viewport;
 
-
-
    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
 
    r->TheFont = createFont(512, 512, "monaco");
    r->FontTexture = createTexture((u8*)r->TheFont->textureData, 512, 512, 1, GL_RED);
