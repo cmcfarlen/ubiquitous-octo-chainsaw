@@ -38,4 +38,27 @@
     _view.delegate = _renderer;
 }
 
+- (BOOL)becomeFirstResponder
+{
+   NSLog(@"becomeFirstResponder");
+   return YES;
+}
+
+
+- (BOOL)acceptsFirstResponder
+{
+   NSLog(@"acceptsFirstResponder");
+   return YES;
+}
+
+- (void)keyDown:(NSEvent*)event
+{
+    [_renderer addKeys:[event characters]];
+}
+
+- (void)keyUp:(NSEvent*)event
+{
+    [_renderer remKeys:[event characters]];
+}
+
 @end

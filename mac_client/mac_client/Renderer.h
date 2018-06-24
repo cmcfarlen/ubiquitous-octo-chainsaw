@@ -14,6 +14,8 @@
 
 - (nonnull instancetype)initWithMetalKitView:(nonnull MTKView *)view;
 - (void) reloadCode;
+- (void) addKeys:(nonnull NSString*)keys;
+- (void) remKeys:(nonnull NSString*)keys;
 
 @end
 

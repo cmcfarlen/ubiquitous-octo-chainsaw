@@ -16,6 +16,12 @@
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     // Insert code here to initialize your application
+    //
+
+   NSApplication* app = [NSApplication sharedApplication];
+   NSWindow* w = [app mainWindow];
+
+   [w makeFirstResponder:[w contentView]];
 }
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification {
@@ -24,6 +30,7 @@
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender {
     return YES;
+
 }
 
 @end

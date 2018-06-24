@@ -154,8 +154,8 @@ static void filewatch_callback(ConstFSEventStreamRef streamRef,
       NSLog(@"Failed to open %s, error %s", path,  dlerror());
    }
 
-   game.InitializeGame = (InitializeGame_t)dlsym(code_handle, "InitializeGame");
-   game.UpdateGameState = (UpdateGameState_t)dlsym(code_handle, "UpdateGameState");
+   *(void**)(&game.InitializeGame) = dlsym(code_handle, "InitializeGame");
+   *(void**)(&game.UpdateGameState) = dlsym(code_handle, "UpdateGameState");
 
    if (game.InitializeGame == 0)
    {
@@ -274,6 +274,9 @@ static void filewatch_callback(ConstFSEventStreamRef streamRef,
 
     vertex_buffer *vb = &_vbuffer.b;
     NSUInteger pressedButtons = [NSEvent pressedMouseButtons];
+    for (int i = 0; i < MOUSE_BUTTON_MAX; ++i) {
+       input.mouse_buttons_down[i] = (pressedButtons & (1 << i)) ? 1 : 0;
+    }
 
     NSPoint mouseP = [[view window] mouseLocationOutsideOfEventStream];
     f64 now_t = now();
@@ -293,7 +296,9 @@ static void filewatch_callback(ConstFSEventStreamRef streamRef,
 
     if(renderPassDescriptor != nil) {
 
-       view.clearColor = (MTLClearColor){0.2f, 0.2f, 0.2f, 1.0f};
+       MTLClearColor c = {0.2f, 0.2f, 0.2f, 1.0f};
+       view.clearColor = c;
+
 
        /// Final pass rendering code here
        id <MTLRenderCommandEncoder> renderEncoder =
@@ -310,6 +315,36 @@ static void filewatch_callback(ConstFSEventStreamRef streamRef,
 
        cx += drawFloat(vb, fs, cx, cy, input.dt, 4);
 
+       cx = 50.0f;
+       cy += fs->size;
+
+       cx += drawString(vb, fs, cx, cy, "MButtons: [");
+       int mouseDownCount = 0;
+       for (int i = 0; i < MOUSE_BUTTON_MAX; ++i) {
+          if (input.mouse_buttons_down[i]) {
+             if (mouseDownCount > 0) {
+                cx += drawString(vb, fs, cx, cy, ", ");
+             }
+             cx += drawInt(vb, fs, cx, cy, i);
+             mouseDownCount++;
+          }
+       }
+       cx += drawString(vb, fs, cx, cy, "]");
+
+       cx = 50.0f;
+       cy += fs->size;
+       cx += drawString(vb, fs, cx, cy, "Keys: [");
+       int keysDownCount = 0;
+       for (u32 i = 0; i < arraycount(input.letters_down); ++i) {
+          if (input.letters_down[i]) {
+             if (keysDownCount > 0) {
+                cx += drawString(vb, fs, cx, cy, ", ");
+             }
+             cx += drawChar(vb, fs, (int)i, cx, cy);
+             keysDownCount++;
+          }
+       }
+       cx += drawString(vb, fs, cx, cy, "]");
 
        double x = (double)_viewport.x;
        double y = (double)_viewport.y;
@@ -348,6 +383,20 @@ static void filewatch_callback(ConstFSEventStreamRef streamRef,
    _viewport.x = size.width;
    _viewport.y = size.height;
    _proj = Ortho2D(0.0f, (f32)_viewport.x, 0.0f, (f32)_viewport.y, -1.0f, 1.0f);
+}
+
+- (void)addKeys:(nonnull NSString*)keys
+{
+   for (u32 i = 0; i < keys.length; i++) {
+      input.letters_down[[keys characterAtIndex:i]&0xff] = 1;
+   }
+}
+
+- (void)remKeys:(nonnull NSString*)keys
+{
+   for (u32 i = 0; i < keys.length; i++) {
+      input.letters_down[[keys characterAtIndex:i]&0xff] = 0;
+   }
 }
 
 @end
