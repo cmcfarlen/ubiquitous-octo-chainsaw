@@ -19,6 +19,7 @@
 #include "game.h"
 #include "matrix.h"
 #include "vertex_buffer.h"
+#include "debug.h"
 
 struct metal_vertex_buffer
 {
@@ -91,6 +92,24 @@ void drawBufferElements(vertex_buffer* tvb, PrimitiveType prim)
 void drawBuffer(vertex_buffer* tvb, PrimitiveType prim)
 {
 }
+
+struct start_stack
+{
+   int id;
+   u64 mark;
+};
+
+const char* button_names[] = {
+   "NOTAKEY",
+   "FORWARD",
+   "BACK",
+   "LEFT",
+   "RIGHT",
+   "UP",
+   "DOWN"
+};
+
+debug_system *GlobalDebug = 0;
 
 
 @implementation Renderer
@@ -179,6 +198,9 @@ static void filewatch_callback(ConstFSEventStreamRef streamRef,
 
         last_t = now();
 
+        GlobalDebug = (debug_system*)malloc(sizeof(debug_system));
+        initializeDebugSystem(GlobalDebug);
+
         state.Platform = Platform;
         game.InitializeGame(&state);
 
@@ -228,7 +250,7 @@ static void filewatch_callback(ConstFSEventStreamRef streamRef,
         id<MTLFunction> uiVertexFunction = [defaultLibrary newFunctionWithName:@"vertexShader"];
         id<MTLFunction> uiFragmentFunction = [defaultLibrary newFunctionWithName:@"fragmentShader"];
 
-        initVertexBuffer(&_vbuffer, 512, _device);
+        initVertexBuffer(&_vbuffer, 2048, _device);
 
         MTLRenderPipelineDescriptor* pipelineStateDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
         pipelineStateDescriptor.label = @"UI Pipeline";
@@ -272,7 +294,6 @@ static void filewatch_callback(ConstFSEventStreamRef streamRef,
        _reloadFlag = false;
     }
 
-    vertex_buffer *vb = &_vbuffer.b;
     NSUInteger pressedButtons = [NSEvent pressedMouseButtons];
     for (int i = 0; i < MOUSE_BUTTON_MAX; ++i) {
        input.mouse_buttons_down[i] = (pressedButtons & (1 << i)) ? 1 : 0;
@@ -307,48 +328,136 @@ static void filewatch_callback(ConstFSEventStreamRef streamRef,
 
        _vbuffer.renderEncoder = renderEncoder;
 
-       screen_font_size* fs = findFontSize(_fontData, 30);
-       f32 cx = 50.0f;
-       f32 cy = 50.0f;
-       cx += drawString(vb, fs, cx, cy, "Hello");
-       cx += drawVec2(vb, fs, cx, cy, input.mouse_p);
 
-       cx += drawFloat(vb, fs, cx, cy, input.dt, 4);
+       game_world* world = &state.world;
+       world_camera* camera = &world->camera;
+       vertex_buffer* t = &_vbuffer.b;
+       screen_font_size* f = findFontSize(_fontData, 9);
 
-       cx = 50.0f;
-       cy += fs->size;
+       f32 y = f->size;
+       f32 x = 50;
+       vec3 dir = directionFromPitchYaw(camera->pitch, camera->yaw);
 
-       cx += drawString(vb, fs, cx, cy, "MButtons: [");
-       int mouseDownCount = 0;
-       for (int i = 0; i < MOUSE_BUTTON_MAX; ++i) {
-          if (input.mouse_buttons_down[i]) {
-             if (mouseDownCount > 0) {
-                cx += drawString(vb, fs, cx, cy, ", ");
-             }
-             cx += drawInt(vb, fs, cx, cy, i);
-             mouseDownCount++;
+
+       x = 5;
+       start_stack debug_stack[512];
+       int stackp = 0;
+       debug_frame* df = GlobalDebug->frame + (1 - GlobalDebug->frame_index);
+       for (u32 i = 0; i < df->itemCount; i++) {
+          debug_item* item = df->items + i;
+          if (item->type == DEBUG_FUNCTION_ENTER) {
+             debug_stack[stackp].id = item->id;
+             debug_stack[stackp].mark = item->mark;
+             ++stackp;
+          } else if (item->type ==  DEBUG_FUNCTION_EXIT) {
+             --stackp;
+             assert(debug_stack[stackp].id == item->id);
+             u64 cycles = item->mark - debug_stack[stackp].mark;
+
+             float dt = (float)((double)cycles / GlobalDebug->count_per_second);
+
+             x += drawString(t, f, x, y, item->file);
+             x += drawString(t, f, x, y, ": ");
+             x += drawString(t, f, x, y, item->name);
+             x += drawString(t, f, x, y, "(");
+             x += drawInt(t, f, x, y, item->line);
+             x += drawString(t, f, x, y, ") ");
+             x += drawFloat(t, f, x, y, dt * 1000.0f, 2);
+
+             x = 5;
+             y += f->size;
           }
        }
-       cx += drawString(vb, fs, cx, cy, "]");
 
-       cx = 50.0f;
-       cy += fs->size;
-       cx += drawString(vb, fs, cx, cy, "Keys: [");
-       int keysDownCount = 0;
-       for (u32 i = 0; i < arraycount(input.letters_down); ++i) {
-          if (input.letters_down[i]) {
-             if (keysDownCount > 0) {
-                cx += drawString(vb, fs, cx, cy, ", ");
+       y += f->size;
+       x = 5;
+       x += drawString(t, f, x, y, "Camera P: ");
+       x += drawVec3(t, f, x, y, camera->p);
+
+       y += f->size;
+       x = 5;
+       x += drawString(t, f, x, y, "Camera V: ");
+       x += drawVec3(t, f, x, y, camera->v);
+
+       y += f->size;
+       x = 5;
+       x += drawString(t, f, x, y, "Camera Dir: ");
+       x += drawVec3(t, f, x, y, dir);
+
+       y += f->size;
+       x = 5;
+       x += drawString(t, f, x, y, "Camera pitch/yaw: ");
+       x += drawFloat(t, f, x, y, camera->pitch, 2);
+       x += drawString(t, f, x, y, "/");
+       x += drawFloat(t, f, x, y, camera->yaw, 2);
+
+       y += f->size;
+       x = 5;
+       x += drawString(t, f, x, y, "Mouse P: ");
+       x += drawVec2(t, f, x, y, state.current_input.mouse_p);
+       x += drawVec2(t, f, x, y, state.current_input.mouse_dp);
+
+       y += f->size;
+       x = 5;
+       x += drawString(t, f, x, y, "Buttons: [");
+       int downCount = 0;
+       for (int i = 0; i < BUTTON_MAX_DEFINED; i++)
+       {
+          if (state.current_input.buttons_down[i]) {
+             if (downCount) {
+                x += drawString(t, f, x, y, ",");
              }
-             cx += drawChar(vb, fs, (int)i, cx, cy);
-             keysDownCount++;
+             x += drawString(t, f, x, y,  button_names[i]);
+             downCount++;
           }
        }
-       cx += drawString(vb, fs, cx, cy, "]");
+       x += drawString(t, f, x, y, "]");
 
-       double x = (double)_viewport.x;
-       double y = (double)_viewport.y;
-       [renderEncoder setViewport:(MTLViewport){0.0, 0.0, x, y, -1.0, 1.0}];
+       y += f->size;
+       x = 5;
+       x += drawString(t, f, x, y, "Letters: [");
+       downCount = 0;
+       for (int i = 0; i < 256; i++)
+       {
+          if (state.current_input.letters_down[i]) {
+             if (downCount) {
+                x += drawChar(t, f, ',', x, y);
+             }
+             x += drawChar(t, f, i, x, y);
+             downCount++;
+          }
+       }
+       x += drawString(t, f, x, y, "]");
+
+       y += f->size;
+       x = 5;
+       x += drawString(t, f, x, y, "Clicked: [");
+       downCount = 0;
+       for (int i = 0; i < MOUSE_BUTTON_MAX; i++)
+       {
+          if (state.current_input.mouse_buttons_click[i]) {
+             if (downCount) {
+                x += drawChar(t, f, ',', x, y);
+             }
+             x += drawChar(t, f, '0' + i, x, y);
+             downCount++;
+          }
+       }
+       x += drawString(t, f, x, y, "]");
+
+       y += f->size;
+       x = 5;
+       x += drawString(t, f, x, y, "Picked: ");
+       x += drawInt(t, f, x, y, world->picked_cube);
+
+       y += f->size;
+       x = 5;
+       x += drawString(t, f, x, y, "Move Target: ");
+       x += drawInt(t, f, x, y, world->move_target);
+
+       double vpx = (double)_viewport.x;
+       double vpy = (double)_viewport.y;
+       [renderEncoder setViewport:(MTLViewport){0.0, 0.0, vpx, vpy, -1.0, 1.0}];
 
        [renderEncoder setRenderPipelineState:_pipelineState];
 

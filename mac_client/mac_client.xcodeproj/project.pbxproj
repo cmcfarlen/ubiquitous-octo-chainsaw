@@ -34,6 +34,7 @@
 		C4638A9C20CDD02B0014DD3C /* game.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = game.h; path = ../../code/game.h; sourceTree = "<group>"; };
 		C46F6C5620B2799800BCD0DC /* stb_truetype.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stb_truetype.h; path = ../../code/stb_truetype.h; sourceTree = "<group>"; };
 		C46F6C5720B27CC500BCD0DC /* monaco.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = monaco.ttf; sourceTree = "<group>"; };
+		C4A3769320DF295600AFB0DB /* debug.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = debug.h; path = ../../code/debug.h; sourceTree = "<group>"; };
 		C4B6BB9420B1DD5800767D71 /* mac_client.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mac_client.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C4B6BB9720B1DD5800767D71 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		C4B6BB9820B1DD5800767D71 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -80,6 +81,7 @@
 		C4B6BB9620B1DD5800767D71 /* mac_client */ = {
 			isa = PBXGroup;
 			children = (
+				C4A3769320DF295600AFB0DB /* debug.h */,
 				C4E6792420DA095B00DE0099 /* vertex_buffer.cpp */,
 				C4E6792520DA095C00DE0099 /* vertex_buffer.h */,
 				C4638A9C20CDD02B0014DD3C /* game.h */,

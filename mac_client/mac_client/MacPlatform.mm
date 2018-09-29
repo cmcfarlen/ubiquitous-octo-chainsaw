@@ -9,6 +9,7 @@
 #import <Foundation/Foundation.h>
 
 #include "platform.h"
+#include "debug.h"
 
 u8* slurp(const char* resource, const char* type, u32* size)
 {
@@ -54,3 +55,5 @@ platform_api Platform = {.log = log,
                          .allocateMemory = allocateMemory,
                          .pageSize = pageSize,
                          .processorCount = processorCount};
+
+
